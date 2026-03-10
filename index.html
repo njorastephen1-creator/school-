@@ -160,7 +160,6 @@
     </main>
     <footer class="footer">© 2026 Exam Portal 🎯</footer>
   </div>
-
   <script>
     const firebaseConfig = { apiKey: "AIzaSyCdSvUk6qpC857ZJfaDbniDlOKvWXPYYXY", authDomain: "discipleship-dashboard-4d713.firebaseapp.com", databaseURL: "https://discipleship-dashboard-4d713-default-rtdb.europe-west1.firebasedatabase.app", projectId: "discipleship-dashboard-4d713", storageBucket: "discipleship-dashboard-4d713.firebasestorage.app", messagingSenderId: "27738663604", appId: "1:27738663604:web:bf1898247e0dd5a37805e1" };
     firebase.initializeApp(firebaseConfig);
@@ -171,7 +170,6 @@
     const examIdFromUrl = urlParams.get('exam');
     if (examIdFromUrl) app.assignedExamId = examIdFromUrl;
     const SHARED_STUDENT_EMAIL = "studentsdiscipleship@gmail.com";
-
     auth.onAuthStateChanged(function(user) {
       app.currentUser = user;
       if (user) {
@@ -195,7 +193,6 @@
         app.isAdmin = false; app.isTeacher = false; app.exams = {}; app.results = {}; app.students = {}; app.testimonies = {}; app.teachers = {};
       }
     });
-
     window.studentLogin = function() {
       const email = prompt('📧 Enter your email:'); if (!email) return;
       const password = prompt('📱 Enter password:'); if (!password) return;
@@ -213,7 +210,6 @@
           } else { alert('❌ Error: ' + error.message); }
         });
     };
-
     window.teacherLogin = function() {
       const email = prompt('👨‍🏫 Teacher Email:'); if (!email) return;
       const password = prompt('🔑 Password:'); if (!password) return;
@@ -222,7 +218,6 @@
         .then(() => { if (app.assignedExamId && !app.registeredStudent) showView('register'); })
         .catch(err => alert('❌ Teacher login failed: ' + err.message));
     };
-
     function checkUserRole() {
       return Promise.all([
         database.ref('authorized_users/' + app.currentUser.uid).once('value').then(snapshot => {
@@ -252,6 +247,7 @@
         }
       });
     }
+    
         window.showView = function(viewName) {
       const isStaff = app.isAdmin || app.isTeacher;
       const isStudent = !isStaff;
@@ -289,9 +285,7 @@
     
     window.createExam = function(e) { e.preventDefault(); if (!app.currentUser) { alert('🔐 Please login first'); return; } if (!app.isTeacher && !app.isAdmin) { alert('🔐 Teachers only'); return; } const title = document.getElementById('exam-title').value.trim(); const subject = document.getElementById('exam-subject').value.trim(); const duration = parseInt(document.getElementById('exam-duration').value); const totalMarks = parseInt(document.getElementById('exam-marks').value); const instructions = document.getElementById('exam-instructions').value.trim(); const questions = []; let qNum = 1; document.querySelectorAll('#questions-container .question-card').forEach(card => { const qText = card.querySelector('[name="q' + qNum + '_text"]').value.trim(); const qA = card.querySelector('[name="q' + qNum + '_a"]').value.trim(); const qB = card.querySelector('[name="q' + qNum + '_b"]').value.trim(); const qC = card.querySelector('[name="q' + qNum + '_c"]').value.trim(); const qD = card.querySelector('[name="q' + qNum + '_d"]').value.trim(); const qCorrect = card.querySelector('[name="q' + qNum + '_correct"]').value; const qMarks = parseInt(card.querySelector('[name="q' + qNum + '_marks"]').value); if (qText && qA && qB && qCorrect) { questions.push({ text: qText, options: { a: qA, b: qB, c: qC || '', d: qD || '' }, correct: qCorrect, marks: qMarks }); } qNum++; }); if (questions.length === 0) { alert('⚠️ Add at least one question'); return; } const exam = { title, subject, duration, totalMarks, instructions, questions, createdBy: app.currentUser.email || 'Teacher', createdAt: Date.now(), status: 'active', accessCode: 'exam_' + Date.now() }; const examId = exam.accessCode; database.ref('exams/' + examId).set(exam).then(() => { const baseUrl = window.location.href.split('?')[0]; const examLink = baseUrl + '?exam=' + examId; document.getElementById('exam-share-link').textContent = examLink; document.getElementById('exam-share-link').style.display = 'block'; document.getElementById('btn-copy-share').style.display = 'inline-block'; document.getElementById('btn-copy-share').dataset.link = examLink; document.getElementById('btn-copy-share').dataset.title = title; alert('✅ Exam published!'); document.getElementById('create-exam-form').reset(); document.getElementById('questions-container').innerHTML = ''; app.questionCount = 0; addQuestion(); }).catch(err => alert('❌ Error: ' + err.message)); };
     
-    window.copyAndShare = function() { const btn = document.getElementById('btn-copy-share'); const link = btn.dataset.link; navigator.clipboard.writeText(link).then(() => { alert('✅ Link copied!\n\n1. WhatsApp will open\n2. Select contact\n3. Paste link (long press)\n4. Send!'); setTimeout(() => { window.open('https://wa.me/', '_blank'); }, 1500); }).catch(() => { prompt('Copy this link:', link); }); };
-    
-    window.renderExams = function() { const list = document.getElementById('exam-list'); if (!list) return; const isStaff = app.isAdmin || app.isTeacher; const isStudent = !isStaff; const searchTerm = (document.getElementById('search-exam').value || '').toLowerCase(); const filter = document.getElementById('filter-exam').value; let filtered = Object.entries(app.exams); if (isStudent && app.registeredStudent && app.registeredStudent.assignedExamId) filtered = filtered.filter(([id, exam]) => id === app.registeredStudent.assignedExamId); else if (isStudent) filtered = []; filtered = filtered.filter(([id, exam]) => { const matchesSearch = !searchTerm || exam.title.toLowerCase().includes(searchTerm); const matchesFilter = !filter || (filter === 'active' && exam.status === 'active'); return matchesSearch && matchesFilter; }); if (filtered.length === 0) { list.innerHTML = '<p style="text-align:center;color:#718096;padding:40px;">' + (isStaff ? 'No exams yet. Create one!' : 'No exams assigned. Wait for teacher link.') + '</p>'; return; } const completedExams = Object.values(app.results).filter(r => r.userId === app.currentUser.uid).map(r => r.examId); list.innerHTML = filtered.map(([id, exam]) => { const isCompleted = completedExams.includes(id); return '<div class="exam-card"><h4>' + exam.title + '</h4><p><strong>Subject:</strong> ' + exam.subject + '</p><p><strong>Duration:</strong> ' + exam.duration + ' min</p><p><strong>Marks:</strong> ' + exam.totalMarks + '</p><p><strong>Questions:</strong> ' + exam.questions.length + '</p><span class="badge ' + (exam.status === 'active' ? 'badge-active' : 'badge-closed') + '">' + exam.status.toUpperCase() + '</span>' + (isCompleted ? '<span class="badge badge-assigned">✅ Completed</span>' : '') + (isStaff ? '<button class="btn-danger btn-sm" onclick="deleteExam(\'' + id + '\')" style="margin-top:12px;">🗑️ Delete</button>' : '') + (exam.status === 'active' && !isCompleted ? '<button class="btn-primary btn-sm" onclick="takeExam(\'' + id + '\')" style="margin-top:12px;width:100%;">📝 Take Exam</button>' : '') + (isCompleted ? '<button class="btn-secondary btn-sm" onclick="viewMyResult(\'' + id + '\')" style="margin-top:12px;width:100%;">📊 View Result</button>' : '') + '</div>'; }).join(''); };
+    window.copyAndShare = function() { const btn = document.getElementById('btn-copy-share'); const link = btn.dataset.link; navigator.clipboard.writeText(link).then(() => { alert('✅ Link copied!\n\n1. WhatsApp will open\n2. Select contact\n3. Paste link (long press)\n4. Send!'); setTimeout(() => { window.open('https://wa.me/', '_blank'); }, 1500); }).catch(() => { prompt('Copy this link:', link); }); };    window.renderExams = function() { const list = document.getElementById('exam-list'); if (!list) return; const isStaff = app.isAdmin || app.isTeacher; const isStudent = !isStaff; const searchTerm = (document.getElementById('search-exam').value || '').toLowerCase(); const filter = document.getElementById('filter-exam').value; let filtered = Object.entries(app.exams); if (isStudent && app.registeredStudent && app.registeredStudent.assignedExamId) filtered = filtered.filter(([id, exam]) => id === app.registeredStudent.assignedExamId); else if (isStudent) filtered = []; filtered = filtered.filter(([id, exam]) => { const matchesSearch = !searchTerm || exam.title.toLowerCase().includes(searchTerm); const matchesFilter = !filter || (filter === 'active' && exam.status === 'active'); return matchesSearch && matchesFilter; }); if (filtered.length === 0) { list.innerHTML = '<p style="text-align:center;color:#718096;padding:40px;">' + (isStaff ? 'No exams yet. Create one!' : 'No exams assigned. Wait for teacher link.') + '</p>'; return; } const completedExams = Object.values(app.results).filter(r => r.userId === app.currentUser.uid).map(r => r.examId); list.innerHTML = filtered.map(([id, exam]) => { const isCompleted = completedExams.includes(id); return '<div class="exam-card"><h4>' + exam.title + '</h4><p><strong>Subject:</strong> ' + exam.subject + '</p><p><strong>Duration:</strong> ' + exam.duration + ' min</p><p><strong>Marks:</strong> ' + exam.totalMarks + '</p><p><strong>Questions:</strong> ' + exam.questions.length + '</p><span class="badge ' + (exam.status === 'active' ? 'badge-active' : 'badge-closed') + '">' + exam.status.toUpperCase() + '</span>' + (isCompleted ? '<span class="badge badge-assigned">✅ Completed</span>' : '') + (isStaff ? '<button class="btn-danger btn-sm" onclick="deleteExam(\'' + id + '\')" style="margin-top:12px;">🗑️ Delete</button>' : '') + (exam.status === 'active' && !isCompleted ? '<button class="btn-primary btn-sm" onclick="takeExam(\'' + id + '\')" style="margin-top:12px;width:100%;">📝 Take Exam</button>' : '') + (isCompleted ? '<button class="btn-secondary btn-sm" onclick="viewMyResult(\'' + id + '\')" style="margin-top:12px;width:100%;">📊 View Result</button>' : '') + '</div>'; }).join(''); };
     
     window.deleteExam = function(examId) { if (!app.isAdmin && !app.isTeacher) { alert('🔐 Staff only'); return; } if (!confirm('⚠️ Delete exam and all results?')) return; database.ref('exams/' + examId).remove().then(() => { const resultsToDelete = Object.entries(app.results).filter(([id, r]) => r.examId === examId).map(([id]) => 'results/' + id); if (resultsToDelete.length > 0) { const updates = {}; resultsToDelete.forEach(p => updates[p] = null); return database.ref().update(updates); } }).then(() => { alert('✅ Deleted!'); renderExams(); }).catch(err => alert('❌ Error: ' + err.message)); };
     
