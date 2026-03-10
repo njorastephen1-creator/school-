@@ -179,6 +179,9 @@
     const examIdFromUrl = urlParams.get('exam');
     if (examIdFromUrl) app.assignedExamId = examIdFromUrl;
 
+    // ✅ SHARED STUDENT EMAIL CONFIGURATION
+    const SHARED_STUDENT_EMAIL = "studentsdiscipleship@gmail.com";
+
     auth.onAuthStateChanged(function(user) {
       app.currentUser = user;
       if (user) {
@@ -206,17 +209,17 @@
       }
     });
 
-    // ✅ FIXED: Auto-create account logic
+    // ✅ FIXED: Auto-create account logic for individual students, or login for shared
     window.studentLogin = function() {
       console.log('🔵 Student Login Clicked');
       const email = prompt('📧 Enter your email:');
       if (!email) return;
-      const password = prompt('📱 Enter password (use phone number):');
+      const password = prompt('📱 Enter password:');
       if (!password) return;
 
       console.log('🔵 Attempting login/create with:', email);
 
-      // STEP 1: Try to CREATE account first
+      // STEP 1: Try to CREATE account first (for individual students)
       auth.createUserWithEmailAndPassword(email, password)
         .then((credential) => {
           console.log('✅ New account created:', credential.user.uid);
@@ -234,9 +237,9 @@
         })
         .catch((error) => {
           console.error('❌ Create account failed:', error.code, error.message);
-          // STEP 2: If account already exists, try to SIGN IN
-          if (error.code === 'auth/email-already-in-use') {
-            console.log('ℹ️ Account exists, signing in...');
+          // STEP 2: If account already exists (or shared email), try to SIGN IN
+          if (error.code === 'auth/email-already-in-use' || error.code === 'auth/invalid-login-credentials') {
+            console.log('ℹ️ Account exists or shared email, signing in...');
             auth.signInWithEmailAndPassword(email, password)
               .then((credential) => {
                 console.log('✅ Login successful:', credential.user.uid);
@@ -270,23 +273,46 @@
         .catch(err => alert('❌ Teacher login failed: ' + err.message));
     };
 
+    // ✅ FIXED: Security Check - Prevents Shared Email from becoming Admin
     function checkUserRole() {
       return Promise.all([
         database.ref('authorized_users/' + app.currentUser.uid).once('value').then(snapshot => {
           const userData = snapshot.val();
           if (userData) {
+            // User is explicitly authorized
             app.isAdmin = userData.role === 'Admin';
             app.isTeacher = userData.role === 'Teacher' || userData.role === 'Admin';
           } else if (!app.currentUser.isAnonymous && app.currentUser.email) {
-            app.isAdmin = true;
-            app.isTeacher = true;
-            database.ref('authorized_users/' + app.currentUser.uid).set({ email: app.currentUser.email, name: app.currentUser.email.split('@')[0], role: 'Admin', status: 'approved', createdAt: Date.now() }).catch(err => console.error('Error:', err));
+            
+            // 🔒 SECURITY CHECK: Is this the shared student email?
+            if (app.currentUser.email === SHARED_STUDENT_EMAIL) {
+              // 🚫 BLOCK: Never allow shared email to be admin
+              app.isAdmin = false;
+              app.isTeacher = false;
+              console.log('🔒 Shared student account detected. Access restricted to Student view only.');
+            } else {
+              // ✅ ALLOW: If it's a NEW unknown email (likely you), make them Admin automatically
+              app.isAdmin = true;
+              app.isTeacher = true;
+              database.ref('authorized_users/' + app.currentUser.uid).set({
+                email: app.currentUser.email,
+                name: app.currentUser.email.split('@')[0],
+                role: 'Admin',
+                status: 'approved',
+                createdAt: Date.now()
+              });
+              console.log('✅ New admin created:', app.currentUser.email);
+            }
           }
         }),
-        database.ref('teachers').orderByChild('email').equalTo(app.currentUser.email).once('value').then(snapshot => { if (snapshot.exists()) app.isTeacher = true; })
+        database.ref('teachers').orderByChild('email').equalTo(app.currentUser.email).once('value').then(snapshot => {
+          if (snapshot.exists()) app.isTeacher = true;
+        })
       ]).then(() => {
         const isStaff = app.isAdmin || app.isTeacher;
-        console.log('🎯 Role - Admin:', app.isAdmin, 'Teacher:', app.isTeacher);
+        console.log('🎯 Role - Admin:', app.isAdmin, 'Teacher:', app.isTeacher, 'Email:', app.currentUser?.email);
+        
+        // UI Updates
         if (!isStaff) {
           document.getElementById('btn-exams').disabled = false;
           document.getElementById('btn-exams').style.display = 'inline-block';
@@ -317,7 +343,7 @@
     window.showView = function(viewName) {
       const isStaff = app.isAdmin || app.isTeacher;
       const isStudent = !isStaff;
-      console.log('🔵View:', viewName, 'Student:', isStudent, 'Staff:', isStaff);
+      console.log('🔵 View:', viewName, 'Student:', isStudent, 'Staff:', isStaff);
       if (isStudent) {
         if (viewName === 'create' || viewName === 'students' || viewName === 'teachers') { alert('🔐 Teachers and Admin only'); viewName = 'exams'; }
         if (viewName === 'testimonies') { alert('📝 Write testimony after completing exam'); viewName = 'exams'; }
@@ -351,18 +377,4 @@
     function startTimer() { const timerEl = document.getElementById('exam-timer'); app.timer = setInterval(() => { app.timeRemaining--; const m = Math.floor(app.timeRemaining / 60); const s = app.timeRemaining % 60; timerEl.textContent = '⏱️ ' + m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0'); if (app.timeRemaining <= 60) timerEl.classList.add('urgent'); if (app.timeRemaining <= 0) { clearInterval(app.timer); alert('⏰ Time up!'); submitExam(null, true); } }, 1000); }
     window.submitExam = function(e, autoSubmit = false) { if (e) e.preventDefault(); if (!app.currentExam || !app.currentUser || !app.registeredStudent) return; if (!autoSubmit && !confirm('📤 Submit?')) return; clearInterval(app.timer); let score = 0, totalMarks = 0; const answers = {}; app.currentExam.questions.forEach((q, i) => { const selected = document.querySelector('input[name="q' + i + '"]:checked'); const userAnswer = selected ? selected.value : null; answers['q' + i] = userAnswer; totalMarks += q.marks; if (userAnswer === q.correct) score += q.marks; }); const percentage = Math.round((score / totalMarks) * 100); const testimony = document.getElementById('exam-testimony').value.trim(); const result = { examId: app.currentExam.id, examTitle: app.currentExam.title, studentEmail: app.currentUser.email || null, userId: app.currentUser.uid, studentName: app.registeredStudent.name, studentPhone: app.registeredStudent.phone, studentClass: app.registeredStudent.class, score, totalMarks, percentage, answers, submittedAt: Date.now(), autoSubmitted: autoSubmit }; const resultId = 'result_' + app.currentUser.uid + '_' + Date.now(); database.ref('results/' + resultId).set(result).then(() => { if (testimony) { const testimonyData = { examId: app.currentExam.id, examTitle: app.currentExam.title, studentEmail: app.currentUser.email || null, userId: app.currentUser.uid, studentName: app.registeredStudent.name, studentClass: app.registeredStudent.class, testimony, score, percentage, submittedAt: Date.now() }; database.ref('testimonies/' + Date.now()).set(testimonyData); } document.getElementById('result-exam-title').textContent = app.currentExam.title; document.getElementById('result-score').textContent = percentage + '%'; document.getElementById('result-marks').textContent = score + ' / ' + totalMarks; document.getElementById('result-date').textContent = '📅 ' + new Date().toLocaleString(); showView('exam-result'); app.currentExam = null; }).catch(err => alert('❌ Error: ' + err.message)); };
     window.viewMyResult = function(examId) { const result = Object.values(app.results).find(r => r.examId === examId && r.userId === app.currentUser.uid); if (!result) return; document.getElementById('result-exam-title').textContent = result.examTitle; document.getElementById('result-score').textContent = result.percentage + '%'; document.getElementById('result-marks').textContent = result.score + ' / ' + result.totalMarks; document.getElementById('result-date').textContent = '📅 ' + new Date(result.submittedAt).toLocaleString(); showView('exam-result'); };
-    window.renderStudents = function() { const tbody = document.getElementById('students-table-body'); if (!tbody) return; const isStaff = app.isAdmin || app.isTeacher; if (!isStaff) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#ef476f;padding:40px;">🔐 Staff only</td></tr>'; return; } const searchTerm = (document.getElementById('search-student').value || '').toLowerCase(); let sorted = Object.values(app.results).sort((a, b) => b.percentage - a.percentage); sorted = sorted.filter(r => !searchTerm || (r.studentName && r.studentName.toLowerCase().includes(searchTerm))); const totalPages = Math.ceil(sorted.length / app.recordsPerPage); if (app.currentPage > totalPages) app.currentPage = totalPages || 1; const start = (app.currentPage - 1) * app.recordsPerPage; const pageData = sorted.slice(start, start + app.recordsPerPage); if (pageData.length === 0) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#718096;padding:40px;">No students</td></tr>'; renderPagination(0); return; } tbody.innerHTML = pageData.map((r, i) => { const rank = start + i + 1; let rc = 'rank-badge'; if (rank === 1) rc += ' rank-1'; else if (rank === 2) rc += ' rank-2'; else if (rank === 3) rc += ' rank-3'; return '<tr><td><span class="' + rc + '">#' + rank + '</span></td><td>' + (r.studentName || 'N/A') + '</td><td>' + (r.studentPhone || 'N/A') + '</td><td>' + (r.studentClass || 'N/A') + '</td><td>' + r.examTitle + '</td><td>' + r.score + '/' + r.totalMarks + '</td><td><strong>' + r.percentage + '%</strong></td><td><button class="btn-danger btn-sm" onclick="deleteResult(\'' + r.examId + '\',\'' + r.userId + '\',\'' + new Date(r.submittedAt).toISOString() + '\')"><i class="fas fa-trash"></i></button></td></tr>'; }).join(''); renderPagination(totalPages); };
-    window.deleteResult = function(examId, studentId, submittedAt) { if (!app.isAdmin && !app.isTeacher) return; if (!confirm('Delete this result?')) return; const rt = Object.entries(app.results).find(([id, r]) => r.examId === examId && r.userId === studentId && new Date(r.submittedAt).toISOString() === submittedAt); if (rt) { database.ref('results/' + rt[0]).remove().then(() => { alert('✅ Deleted!'); renderStudents(); }).catch(err => alert('❌ Error: ' + err.message)); } };
-    function renderPagination(totalPages) { const p = document.getElementById('pagination'); if (!p) return; if (totalPages <= 1) { p.innerHTML = ''; return; } p.innerHTML = '<button onclick="changePage(1)" ' + (app.currentPage===1?'disabled':'') + '><i class="fas fa-angle-double-left"></i></button><button onclick="changePage(' + (app.currentPage-1) + ')" ' + (app.currentPage===1?'disabled':'') + '><i class="fas fa-angle-left"></i></button><span class="pagination-info" style="margin:0 16px;">Page ' + app.currentPage + ' of ' + totalPages + '</span><button onclick="changePage(' + (app.currentPage+1) + ')" ' + (app.currentPage===totalPages?'disabled':'') + '><i class="fas fa-angle-right"></i></button><button onclick="changePage(' + totalPages + ')" ' + (app.currentPage===totalPages?'disabled':'') + '><i class="fas fa-angle-double-right"></i></button>'; }
-    
-    window.changePage = function(page) { app.currentPage = page; renderStudents(); };
-    
-    window.exportStudents = function() { if (!app.isAdmin && !app.isTeacher) { alert('🔐 Staff only'); return; } let csv = 'Rank,Name,Phone,Class,Exam,Score,Total,Percentage,Date\n'; Object.values(app.results).sort((a, b) => b.percentage - a.percentage).forEach((r, i) => { csv += (i+1) + ',"' + (r.studentName || '') + '","' + (r.studentPhone || '') + '","' + (r.studentClass || '') + '","' + r.examTitle + '",' + r.score + ',' + r.totalMarks + ',' + r.percentage + '%,' + new Date(r.submittedAt).toLocaleString() + '\n'; }); const blob = new Blob([csv], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Students_' + new Date().toISOString().split('T')[0] + '.csv'; a.click(); alert('✅ Exported!'); };
-    
-    window.renderTestimonies = function() { const list = document.getElementById('testimonies-list'); if (!list) return; const isStaff = app.isAdmin || app.isTeacher; if (!isStaff) { list.innerHTML = '<p style="text-align:center;color:#718096;padding:40px;">💬 Write testimony after exam</p>'; return; } const filtered = Object.values(app.testimonies); if (filtered.length === 0) { list.innerHTML = '<p style="text-align:center;color:#718096;padding:40px;">No testimonies</p>'; return; } list.innerHTML = filtered.map(t => '<div class="testimony-card"><h4>💬 ' + (t.studentName || 'Anonymous') + ' - <span style="color:#667eea;">' + t.percentage + '%</span></h4><p>"' + t.testimony + '"</p><div class="meta" style="color:#64748b;font-size:13px;margin-top:8px;"><strong>Exam:</strong> ' + t.examTitle + ' | <strong>Class:</strong> ' + t.studentClass + ' | <strong>Date:</strong> ' + new Date(t.submittedAt).toLocaleDateString() + '</div></div>').join(''); };
-    
-    window.addEventListener('DOMContentLoaded', function() { console.log('✅ Portal Ready!'); addQuestion(); if (app.assignedExamId) { loadExamForRegistration(); if (!app.currentUser) document.getElementById('auth-warning').style.display = 'block'; } });
-    window.addEventListener('beforeunload', function(e) { if (app.timer) { e.preventDefault(); e.returnValue = 'Exam in progress!'; } });
-  </script>
-</body>
-</html>
+    window.renderStudents = function() { const tbody = document.getElementById('students-table-body'); if (!tbody) return; const isStaff = app.isAdmin || app.isTeacher; if (!isStaff) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#ef476f;padding:40px;">🔐 Staff only</td></tr>'; return; } const searchTerm = (document.getElementById('search-student').value || '').toLowerCase(); let sorted = Object.values(app.results).sort((a, b) => b.percentage - a.percentage); sorted = sorted.filter(r => !searchTerm || (r.studentName && r.studentName.toLowerCase().includes(searchTerm))); const totalPages = Math.ceil(sorted.length / app.recordsPerPage); if (app.currentPage > totalPages) app.currentPage = totalPages || 1; const start = (app.currentPage - 1) * app.recordsPerPage; const pageData = sorted.slice(start, start + app.recordsPerPage); if (pageData.length === 0) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#718096;padding:40px;">No students</td></tr>'; renderPagination(0); return; } tbody.innerHTML = pageData.map((r, i) => { const rank = start + i + 1; let rc = 'rank-badge'; if (rank === 1) rc += ' rank-1'; else if (rank === 2) rc += ' rank-2'; else if (rank === 3) rc += ' rank-3'; return '<tr><td><span class="' + rc + '">#' + rank + '</span></td><td>' + (r.studentName || 'N/A') + '</td><td>' + (r.studentPhone || 'N/A') + '</td><td>' + (r.studentClass || 'N/A') + '</td><td>' + r.examTitle + '</td><td>' + r.score + '/' + r.totalMarks + '</td><td><strong>' + r.percentage + '%</strong></td><td><button class="btn-danger btn-sm" onclick="deleteResult(\'' + r.examId + '\',\'' + r.userId + '\',\'' + new Date(r.submittedAt).toISOString() + '\')"><i class="fas fa-trash"></i></button></td></tr>'; }).join(''); renderP
