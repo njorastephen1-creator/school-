@@ -195,7 +195,72 @@
 
     window.addQuestion = function() { app.questionCount++; const container = document.getElementById('questions-container'); const questionDiv = document.createElement('div'); questionDiv.style.cssText = 'background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:16px;border:2px solid #e2e8f0;'; questionDiv.innerHTML = '<h4>Question ' + app.questionCount + '</h4><div class="form-group"><label>Question Text *</label><textarea name="q' + app.questionCount + '_text" rows="2" required></textarea></div><div class="form-group"><label>Option A *</label><input type="text" name="q' + app.questionCount + '_a" required/></div><div class="form-group"><label>Option B *</label><input type="text" name="q' + app.questionCount + '_b" required/></div><div class="form-group"><label>Option C</label><input type="text" name="q' + app.questionCount + '_c"/></div><div class="form-group"><label>Option D</label><input type="text" name="q' + app.questionCount + '_d"/></div><div class="form-group"><label>Correct Answer *</label><select name="q' + app.questionCount + '_correct" required><option value="">Select</option><option value="a">A</option><option value="b">B</option><option value="c">C</option><option value="d">D</option></select></div><div class="form-group"><label>Marks *</label><input type="number" name="q' + app.questionCount + '_marks" required min="1" value="1"/></div><button type="button" class="btn-danger btn-sm" onclick="this.parentElement.remove()">🗑️ Remove</button>'; container.appendChild(questionDiv); };
 
-    window.createExam = function(e) { e.preventDefault(); if (!app.currentUser) { alert('🔐 Please login first'); return; } const title = document.getElementById('exam-title').value.trim(); const subject = document.getElementById('exam-subject').value.trim(); const duration = parseInt(document.getElementById('exam-duration').value); const totalMarks = parseInt(document.getElementById('exam-marks').value); const instructions = document.getElementById('exam-instructions').value.trim(); const questions = []; let qNum = 1; document.querySelectorAll('#questions-container > div').forEach(card => { const qText = card.querySelector('[name="q' + qNum + '_text"]').value.trim(); const qA = card.querySelector('[name="q' + qNum + '_a"]').value.trim(); const qB = card.querySelector('[name="q' + qNum + '_b"]').value.trim(); const qC = card.querySelector('[name="q' + qNum + '_c"]').value.trim(); const qD = card.querySelector('[name="q' + qNum + '_d"]').value.trim(); const qCorrect = card.querySelector('[name="q' + qNum + '_correct"]').value; const qMarks = parseInt(card.querySelector('[name="q' + qNum + '_marks"]').value); if (qText && qA && qB && qCorrect) { questions.push({ text: qText, options: { a: qA, b: qB, c: qC || '', d: qD || '' }, correct: qCorrect, marks: qMarks }); } qNum++; }); if (questions.length === 0) { alert('⚠️ Add at least one question'); return; } const exam = { title, subject, duration, totalMarks, instructions, questions, createdBy: app.currentUser.email, createdAt: Date.now(), status: 'active' }; const examId = 'exam_' + Date.now(); database.ref('exams/' + examId).set(exam).then(() => { const baseUrl = window.location.href.split('index')[0]; const examLink = baseUrl + 'portal.html?exam=' + examId; document.getElementById('exam-share-link').textContent = examLink; document.getElementById('exam-share-link').style.display = 'block'; document.getElementById('btn-copy-share').style.display = 'inline-block'; document.getElementById('btn-copy-share').dataset.link = examLink; alert('✅ Exam published! Share the link with students.'); document.getElementById('create-exam-form').reset(); document.getElementById('questions-container').innerHTML = ''; app.questionCount = 0; addQuestion(); }).catch(err => alert('❌ Error: ' + err.message)); };
+    // 🔥 UPDATED: Saves to BOTH Firebase databases
+    window.createExam = function(e) {
+      e.preventDefault();
+      if (!app.currentUser) { alert('🔐 Please login first'); return; }
+      
+      const title = document.getElementById('exam-title').value.trim();
+      const subject = document.getElementById('exam-subject').value.trim();
+      const duration = parseInt(document.getElementById('exam-duration').value);
+      const totalMarks = parseInt(document.getElementById('exam-marks').value);
+      const instructions = document.getElementById('exam-instructions').value.trim();
+      
+      const questions = [];
+      let qNum = 1;
+      document.querySelectorAll('#questions-container > div').forEach(card => {
+        const qText = card.querySelector('[name="q' + qNum + '_text"]').value.trim();
+        const qA = card.querySelector('[name="q' + qNum + '_a"]').value.trim();
+        const qB = card.querySelector('[name="q' + qNum + '_b"]').value.trim();
+        const qC = card.querySelector('[name="q' + qNum + '_c"]').value.trim();
+        const qD = card.querySelector('[name="q' + qNum + '_d"]').value.trim();
+        const qCorrect = card.querySelector('[name="q' + qNum + '_correct"]').value;
+        const qMarks = parseInt(card.querySelector('[name="q' + qNum + '_marks"]').value);
+        if (qText && qA && qB && qCorrect) {
+          questions.push({ text: qText, options: { a: qA, b: qB, c: qC || '', d: qD || '' }, correct: qCorrect, marks: qMarks });
+        }
+        qNum++;
+      });
+      
+      if (questions.length === 0) { alert('⚠️ Add at least one question'); return; }
+      
+      const exam = { title, subject, duration, totalMarks, instructions, questions, createdBy: app.currentUser.email, createdAt: Date.now(), status: 'active' };
+      const examId = 'exam_' + Date.now();
+      
+      // Save to OLD Firebase (Discipleship - for admin viewing)
+      database.ref('exams/' + examId).set(exam).then(() => {
+        // ALSO save to NEW Firebase (Examination - for students)
+        const newFirebaseConfig = {
+          apiKey: "AIzaSyBslORNsWS9qI4wXyBr3YpNA45bt5YYvjg",
+          authDomain: "examination-dfebe.firebaseapp.com",
+          databaseURL: "https://examination-dfebe-default-rtdb.europe-west1.firebasedatabase.app",
+          projectId: "examination-dfebe",
+          storageBucket: "examination-dfebe.firebasestorage.app",
+          messagingSenderId: "191460094638",
+          appId: "1:191460094638:web:f27a0087d12cd16153333f"
+        };
+        
+        const newFirebase = firebase.initializeApp(newFirebaseConfig, 'NewFirebaseApp');
+        const newDatabase = newFirebase.database();
+        
+        return newDatabase.ref('exams/' + examId).set(exam).then(() => {
+          const baseUrl = window.location.href.split('index')[0];
+          const examLink = baseUrl + 'portal.html?exam=' + examId;
+          
+          document.getElementById('exam-share-link').textContent = examLink;
+          document.getElementById('exam-share-link').style.display = 'block';
+          document.getElementById('btn-copy-share').style.display = 'inline-block';
+          document.getElementById('btn-copy-share').dataset.link = examLink;
+          
+          alert('✅ Exam published to BOTH databases!\n\nShare the link with students.');
+          
+          document.getElementById('create-exam-form').reset();
+          document.getElementById('questions-container').innerHTML = '';
+          app.questionCount = 0;
+          addQuestion();
+        });
+      }).catch(err => alert('❌ Error: ' + err.message));
+    };
 
     window.copyAndShare = function() { const btn = document.getElementById('btn-copy-share'); const link = btn.dataset.link; navigator.clipboard.writeText(link).then(() => { alert('✅ Link copied!\n\n1. WhatsApp will open\n2. Select contact\n3. Paste link\n4. Send!'); setTimeout(() => { window.open('https://wa.me/', '_blank'); }, 1500); }).catch(() => { prompt('Copy this link:', link); }); };
 
@@ -207,17 +272,17 @@
 
     window.deleteResult = function(examId, studentId) { if (!confirm('Delete this result?')) return; const rt = Object.entries(app.results).find(([id, r]) => r.examId === examId && r.userId === studentId); if (rt) { database.ref('results/' + rt[0]).remove().then(() => { alert('✅ Deleted!'); renderStudents(); }); } };
 
-    window.exportStudents = function() { let csv = 'Rank,Name,Phone,Class,Exam,Score,Total,Percentage,Date\n'; Object.values(app.results).sort((a, b) => b.percentage - a.percentage).forEach((r, i) => { csv += (i+1) + ',"' + (r.studentName || '') + '","' + (r.studentPhone || '') + '","' + (r.studentClass || '') + '","' + r.examTitle + '",' + r.score + ',' + r.totalMarks + ',' + r.percentage + '%,' + new Date(r.submittedAt).toLocaleString() + '\n'; }); const blob = new Blob([csv], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Students_' + new Date().toISOString().split('T')[0] + '.csv'; a.click(); alert('✅ Exported!'); };
+window.exportStudents = function() { let csv = 'Rank,Name,Phone,Class,Exam,Score,Total,Percentage,Date\n'; Object.values(app.results).sort((a, b) => b.percentage - a.percentage).forEach((r, i) => { csv += (i+1) + ',"' + (r.studentName || '') + '","' + (r.studentPhone || '') + '","' + (r.studentClass || '') + '","' + r.examTitle + '",' + r.score + ',' + r.totalMarks + ',' + r.percentage + '%,' + new Date(r.submittedAt).toLocaleString() + '\n'; }); const blob = new Blob([csv], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Students_' + new Date().toISOString().split('T')[0] + '.csv'; a.click(); alert('✅ Exported!'); };
 
-    window.renderTestimonies = function() { const list = document.getElementById('testimonies-list'); if (!list) return; const filtered = Object.values(app.testimonies); if (filtered.length === 0) { list.innerHTML = '<p style="text-align:center;color:#718096;padding:40px;">No testimonies</p>'; return; } list.innerHTML = filtered.map(t => '<div class="testimony-card"><h4>💬 ' + (t.studentName || 'Anonymous') + ' - <span style="color:#667eea;">' + t.percentage + '%</span></h4><p>"' + t.testimony + '"</p><div class="meta" style="color:#64748b;font-size:13px;margin-top:8px;"><strong>Exam:</strong> ' + t.examTitle + ' | <strong>Class:</strong> ' + t.studentClass + ' | <strong>Date:</strong> ' + new Date(t.submittedAt).toLocaleDateString() + '</div></div>').join(''); };
-    
-    window.addTeacher = function(e) { e.preventDefault(); if (!app.isAdmin) { alert('🔐 Admin only'); return; } const email = document.getElementById('teacher-email').value.trim(); const name = document.getElementById('teacher-name').value.trim(); const password = 'Teacher' + Date.now(); auth.createUserWithEmailAndPassword(email, password).then(uc => database.ref('teachers/' + uc.user.uid).set({ email, name, addedBy: app.currentUser.email, addedAt: Date.now() })).then(() => { alert('✅ Teacher added!\nEmail: ' + email + '\nPassword: ' + password); e.target.reset(); renderTeachers(); }).catch(err => alert('❌ Error: ' + err.message)); };
-    
-    function renderTeachers() { const list = document.getElementById('teachers-list'); if (!list) return; database.ref('teachers').once('value').then(snapshot => { const teachers = snapshot.val() || {}; if (Object.keys(teachers).length === 0) { list.innerHTML = '<p style="color:#718096;text-align:center;padding:20px;">No teachers yet</p>'; return; } list.innerHTML = Object.entries(teachers).map(([uid, t]) => '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:8px;"><div><strong>' + t.name + '</strong><br><small style="color:#718096;">' + t.email + '</small></div><button class="btn-danger btn-sm" onclick="removeTeacher(\'' + uid + '\')">🗑️ Remove</button></div>').join(''); }); }
-    
-    window.removeTeacher = function(uid) { if (!confirm('Remove this teacher?')) return; database.ref('teachers/' + uid).remove().then(() => { alert('✅ Teacher removed'); renderTeachers(); }); };
-    
-    window.addEventListener('DOMContentLoaded', function() { console.log('✅ Admin Portal Ready!'); if (!app.currentUser) document.getElementById('auth-warning').style.display = 'block'; });
-  </script>
+window.renderTestimonies = function() { const list = document.getElementById('testimonies-list'); if (!list) return; const filtered = Object.values(app.testimonies); if (filtered.length === 0) { list.innerHTML = '<p style="text-align:center;color:#718096;padding:40px;">No testimonies</p>'; return; } list.innerHTML = filtered.map(t => '<div class="testimony-card"><h4>💬 ' + (t.studentName || 'Anonymous') + ' - <span style="color:#667eea;">' + t.percentage + '%</span></h4><p>"' + t.testimony + '"</p><div class="meta" style="color:#64748b;font-size:13px;margin-top:8px;"><strong>Exam:</strong> ' + t.examTitle + ' | <strong>Class:</strong> ' + t.studentClass + ' | <strong>Date:</strong> ' + new Date(t.submittedAt).toLocaleDateString() + '</div></div>').join(''); };
+
+window.addTeacher = function(e) { e.preventDefault(); if (!app.isAdmin) { alert('🔐 Admin only'); return; } const email = document.getElementById('teacher-email').value.trim(); const name = document.getElementById('teacher-name').value.trim(); const password = 'Teacher' + Date.now(); auth.createUserWithEmailAndPassword(email, password).then(uc => database.ref('teachers/' + uc.user.uid).set({ email, name, addedBy: app.currentUser.email, addedAt: Date.now() })).then(() => { alert('✅ Teacher added!\nEmail: ' + email + '\nPassword: ' + password); e.target.reset(); renderTeachers(); }).catch(err => alert('❌ Error: ' + err.message)); };
+
+function renderTeachers() { const list = document.getElementById('teachers-list'); if (!list) return; database.ref('teachers').once('value').then(snapshot => { const teachers = snapshot.val() || {}; if (Object.keys(teachers).length === 0) { list.innerHTML = '<p style="color:#718096;text-align:center;padding:20px;">No teachers yet</p>'; return; } list.innerHTML = Object.entries(teachers).map(([uid, t]) => '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:8px;"><div><strong>' + t.name + '</strong><br><small style="color:#718096;">' + t.email + '</small></div><button class="btn-danger btn-sm" onclick="removeTeacher(\'' + uid + '\')">🗑️ Remove</button></div>').join(''); }); }
+
+window.removeTeacher = function(uid) { if (!confirm('Remove this teacher?')) return; database.ref('teachers/' + uid).remove().then(() => { alert('✅ Teacher removed'); renderTeachers(); }); };
+
+window.addEventListener('DOMContentLoaded', function() { console.log('✅ Admin Portal Ready!'); if (!app.currentUser) document.getElementById('auth-warning').style.display = 'block'; });
+</script>
 </body>
 </html>
