@@ -160,8 +160,19 @@
     </main>
     <footer class="footer">© 2026 Exam Portal 🎯</footer>
   </div>
+
   <script>
-    const firebaseConfig = { apiKey: "AIzaSyCdSvUk6qpC857ZJfaDbniDlOKvWXPYYXY", authDomain: "discipleship-dashboard-4d713.firebaseapp.com", databaseURL: "https://discipleship-dashboard-4d713-default-rtdb.europe-west1.firebasedatabase.app", projectId: "discipleship-dashboard-4d713", storageBucket: "discipleship-dashboard-4d713.firebasestorage.app", messagingSenderId: "27738663604", appId: "1:27738663604:web:bf1898247e0dd5a37805e1" };
+    // 🔥 YOUR NEW FIREBASE CONFIG - READY TO USE!
+    const firebaseConfig = {
+      apiKey: "AIzaSyBslORNsWS9qI4wXyBr3YpNA45bt5YYvjg",
+      authDomain: "examination-dfebe.firebaseapp.com",
+      databaseURL: "https://examination-dfebe-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "examination-dfebe",
+      storageBucket: "examination-dfebe.firebasestorage.app",
+      messagingSenderId: "191460094638",
+      appId: "1:191460094638:web:f27a0087d12cd16153333f"
+    };
+    
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
     const auth = firebase.auth();
@@ -170,6 +181,7 @@
     const examIdFromUrl = urlParams.get('exam');
     if (examIdFromUrl) app.assignedExamId = examIdFromUrl;
     const SHARED_STUDENT_EMAIL = "studentsdiscipleship@gmail.com";
+
     auth.onAuthStateChanged(function(user) {
       app.currentUser = user;
       if (user) {
@@ -193,6 +205,7 @@
         app.isAdmin = false; app.isTeacher = false; app.exams = {}; app.results = {}; app.students = {}; app.testimonies = {}; app.teachers = {};
       }
     });
+
     window.studentLogin = function() {
       const email = prompt('📧 Enter your email:'); if (!email) return;
       const password = prompt('📱 Enter password:'); if (!password) return;
@@ -210,6 +223,7 @@
           } else { alert('❌ Error: ' + error.message); }
         });
     };
+
     window.teacherLogin = function() {
       const email = prompt('👨‍🏫 Teacher Email:'); if (!email) return;
       const password = prompt('🔑 Password:'); if (!password) return;
@@ -218,17 +232,29 @@
         .then(() => { if (app.assignedExamId && !app.registeredStudent) showView('register'); })
         .catch(err => alert('❌ Teacher login failed: ' + err.message));
     };
+
     function checkUserRole() {
       return Promise.all([
         database.ref('authorized_users/' + app.currentUser.uid).once('value').then(snapshot => {
           const userData = snapshot.val();
-          if (userData) { app.isAdmin = userData.role === 'Admin'; app.isTeacher = userData.role === 'Teacher' || userData.role === 'Admin'; }
-          else if (!app.currentUser.isAnonymous && app.currentUser.email) {
-            if (app.currentUser.email === SHARED_STUDENT_EMAIL) { app.isAdmin = false; app.isTeacher = false; }
-            else { app.isAdmin = true; app.isTeacher = true; database.ref('authorized_users/' + app.currentUser.uid).set({ email: app.currentUser.email, name: app.currentUser.email.split('@')[0], role: 'Admin', status: 'approved', createdAt: Date.now() }); }
+          if (userData) {
+            app.isAdmin = userData.role === 'Admin';
+            app.isTeacher = userData.role === 'Teacher' || userData.role === 'Admin';
+          } else if (!app.currentUser.isAnonymous && app.currentUser.email) {
+            if (app.currentUser.email.trim().toLowerCase() === SHARED_STUDENT_EMAIL) {
+              app.isAdmin = false; app.isTeacher = false;
+            } else {
+              app.isAdmin = true; app.isTeacher = true;
+              database.ref('authorized_users/' + app.currentUser.uid).set({
+                email: app.currentUser.email, name: app.currentUser.email.split('@')[0],
+                role: 'Admin', status: 'approved', createdAt: Date.now()
+              });
+            }
           }
         }),
-        database.ref('teachers').orderByChild('email').equalTo(app.currentUser.email).once('value').then(snapshot => { if (snapshot.exists()) app.isTeacher = true; })
+        database.ref('teachers').orderByChild('email').equalTo(app.currentUser.email).once('value').then(snapshot => {
+          if (snapshot.exists()) app.isTeacher = true;
+        })
       ]).then(() => {
         const isStaff = app.isAdmin || app.isTeacher;
         if (!isStaff) {
@@ -245,12 +271,21 @@
           document.getElementById('btn-create').disabled = false; document.getElementById('btn-create').style.display = 'inline-block';
           document.getElementById('btn-teachers').disabled = !app.isAdmin; document.getElementById('btn-teachers').style.display = app.isAdmin ? 'inline-block' : 'none';
         }
+        // 🔒 FINAL OVERRIDE: Force student view for shared email
+        if (app.currentUser.email && app.currentUser.email.trim().toLowerCase() === SHARED_STUDENT_EMAIL) {
+          console.log('🔒 Shared student email override applied');
+          document.getElementById('btn-students').style.display = 'none';
+          document.getElementById('btn-testimonies').style.display = 'none';
+          document.getElementById('btn-create').style.display = 'none';
+          document.getElementById('btn-teachers').style.display = 'none';
+          document.getElementById('btn-exams').style.display = 'inline-block';
+          document.getElementById('btn-register').style.display = 'inline-block';
+        }
       });
     }
-    
-        window.showView = function(viewName) {
-      const isStaff = app.isAdmin || app.isTeacher;
-      const isStudent = !isStaff;
+
+    window.showView = function(viewName) {
+      const isStaff = app.isAdmin || app.isTeacher; const isStudent = !isStaff;
       if (isStudent) {
         if (viewName === 'create' || viewName === 'students' || viewName === 'teachers') { alert('🔐 Teachers and Admin only'); viewName = 'exams'; }
         if (viewName === 'testimonies') { alert('📝 Write testimony after completing exam'); viewName = 'exams'; }
@@ -270,39 +305,23 @@
     };
 
     function loadExamForRegistration() { if (!app.assignedExamId) return; database.ref('exams/' + app.assignedExamId).once('value').then(snapshot => { const exam = snapshot.val(); if (exam) { document.getElementById('assigned-exam-name').textContent = exam.title; document.getElementById('exam-access-info').style.display = 'block'; } else { alert('❌ Invalid exam link'); app.assignedExamId = null; } }); }
-    
     window.registerStudent = function(e) { e.preventDefault(); if (!app.currentUser) { alert('🔐 Please login first'); return; } const studentData = { name: document.getElementById('reg-name').value.trim(), phone: document.getElementById('reg-phone').value.trim(), class: document.getElementById('reg-class').value.trim(), email: app.currentUser.email || null, userId: app.currentUser.uid, registeredAt: Date.now(), assignedExamId: app.assignedExamId }; database.ref('students/' + app.currentUser.uid).set(studentData).then(() => { app.registeredStudent = studentData; alert('✅ Registration successful!'); document.getElementById('register-form').reset(); showView('exams'); }).catch(err => alert('❌ Error: ' + err.message)); };
-    
     window.addTeacher = function(e) { e.preventDefault(); if (!app.isAdmin) { alert('🔐 Admin only'); return; } const email = document.getElementById('teacher-email').value.trim(); const name = document.getElementById('teacher-name').value.trim(); const password = 'Teacher' + Date.now(); auth.createUserWithEmailAndPassword(email, password).then(uc => database.ref('teachers/' + uc.user.uid).set({ email, name, addedBy: app.currentUser.email, addedAt: Date.now() })).then(() => { alert('✅ Teacher added!\nEmail: ' + email + '\nPassword: ' + password); e.target.reset(); renderTeachers(); }).catch(err => alert('❌ Error: ' + err.message)); };
-    
     function renderTeachers() { const list = document.getElementById('teachers-list'); if (!list) return; database.ref('teachers').once('value').then(snapshot => { const teachers = snapshot.val() || {}; if (Object.keys(teachers).length === 0) { list.innerHTML = '<p style="color:#718096;text-align:center;padding:20px;">No teachers yet</p>'; return; } list.innerHTML = Object.entries(teachers).map(([uid, t]) => '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:8px;"><div><strong>' + t.name + '</strong><br><small style="color:#718096;">' + t.email + '</small></div><button class="btn-danger btn-sm" onclick="removeTeacher(\'' + uid + '\')">🗑️ Remove</button></div>').join(''); }); }
-    
     window.removeTeacher = function(uid) { if (!confirm('Remove this teacher?')) return; database.ref('teachers/' + uid).remove().then(() => { alert('✅ Teacher removed'); renderTeachers(); }); };
-    
     function loadAllData() { database.ref('exams').on('value', snapshot => { app.exams = snapshot.val() || {}; renderExams(); }); database.ref('results').on('value', snapshot => { app.results = snapshot.val() || {}; renderStudents(); }); database.ref('testimonies').on('value', snapshot => { app.testimonies = snapshot.val() || {}; renderTestimonies(); }); if (app.currentUser) { database.ref('students/' + app.currentUser.uid).once('value').then(snapshot => { const student = snapshot.val(); if (student) app.registeredStudent = student; }); } }
-    
     window.addQuestion = function() { app.questionCount++; const container = document.getElementById('questions-container'); const questionDiv = document.createElement('div'); questionDiv.className = 'question-card'; questionDiv.style.cssText = 'background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:16px;border:2px solid #e2e8f0;'; questionDiv.innerHTML = '<h4>Question ' + app.questionCount + '</h4><div class="form-group"><label>Question Text *</label><textarea name="q' + app.questionCount + '_text" rows="2" required placeholder="Enter question..."></textarea></div><div class="form-group"><label>Option A *</label><input type="text" name="q' + app.questionCount + '_a" required placeholder="Option A"/></div><div class="form-group"><label>Option B *</label><input type="text" name="q' + app.questionCount + '_b" required placeholder="Option B"/></div><div class="form-group"><label>Option C</label><input type="text" name="q' + app.questionCount + '_c" placeholder="Option C"/></div><div class="form-group"><label>Option D</label><input type="text" name="q' + app.questionCount + '_d" placeholder="Option D"/></div><div class="form-group"><label>Correct Answer *</label><select name="q' + app.questionCount + '_correct" required><option value="">Select correct answer</option><option value="a">Option A</option><option value="b">Option B</option><option value="c">Option C</option><option value="d">Option D</option></select></div><div class="form-group"><label>Marks *</label><input type="number" name="q' + app.questionCount + '_marks" required min="1" value="1"/></div><button type="button" class="btn-danger btn-sm" onclick="this.parentElement.remove()">🗑️ Remove</button>'; container.appendChild(questionDiv); };
-    
     window.createExam = function(e) { e.preventDefault(); if (!app.currentUser) { alert('🔐 Please login first'); return; } if (!app.isTeacher && !app.isAdmin) { alert('🔐 Teachers only'); return; } const title = document.getElementById('exam-title').value.trim(); const subject = document.getElementById('exam-subject').value.trim(); const duration = parseInt(document.getElementById('exam-duration').value); const totalMarks = parseInt(document.getElementById('exam-marks').value); const instructions = document.getElementById('exam-instructions').value.trim(); const questions = []; let qNum = 1; document.querySelectorAll('#questions-container .question-card').forEach(card => { const qText = card.querySelector('[name="q' + qNum + '_text"]').value.trim(); const qA = card.querySelector('[name="q' + qNum + '_a"]').value.trim(); const qB = card.querySelector('[name="q' + qNum + '_b"]').value.trim(); const qC = card.querySelector('[name="q' + qNum + '_c"]').value.trim(); const qD = card.querySelector('[name="q' + qNum + '_d"]').value.trim(); const qCorrect = card.querySelector('[name="q' + qNum + '_correct"]').value; const qMarks = parseInt(card.querySelector('[name="q' + qNum + '_marks"]').value); if (qText && qA && qB && qCorrect) { questions.push({ text: qText, options: { a: qA, b: qB, c: qC || '', d: qD || '' }, correct: qCorrect, marks: qMarks }); } qNum++; }); if (questions.length === 0) { alert('⚠️ Add at least one question'); return; } const exam = { title, subject, duration, totalMarks, instructions, questions, createdBy: app.currentUser.email || 'Teacher', createdAt: Date.now(), status: 'active', accessCode: 'exam_' + Date.now() }; const examId = exam.accessCode; database.ref('exams/' + examId).set(exam).then(() => { const baseUrl = window.location.href.split('?')[0]; const examLink = baseUrl + '?exam=' + examId; document.getElementById('exam-share-link').textContent = examLink; document.getElementById('exam-share-link').style.display = 'block'; document.getElementById('btn-copy-share').style.display = 'inline-block'; document.getElementById('btn-copy-share').dataset.link = examLink; document.getElementById('btn-copy-share').dataset.title = title; alert('✅ Exam published!'); document.getElementById('create-exam-form').reset(); document.getElementById('questions-container').innerHTML = ''; app.questionCount = 0; addQuestion(); }).catch(err => alert('❌ Error: ' + err.message)); };
-    
-    window.copyAndShare = function() { const btn = document.getElementById('btn-copy-share'); const link = btn.dataset.link; navigator.clipboard.writeText(link).then(() => { alert('✅ Link copied!\n\n1. WhatsApp will open\n2. Select contact\n3. Paste link (long press)\n4. Send!'); setTimeout(() => { window.open('https://wa.me/', '_blank'); }, 1500); }).catch(() => { prompt('Copy this link:', link); }); };    window.renderExams = function() { const list = document.getElementById('exam-list'); if (!list) return; const isStaff = app.isAdmin || app.isTeacher; const isStudent = !isStaff; const searchTerm = (document.getElementById('search-exam').value || '').toLowerCase(); const filter = document.getElementById('filter-exam').value; let filtered = Object.entries(app.exams); if (isStudent && app.registeredStudent && app.registeredStudent.assignedExamId) filtered = filtered.filter(([id, exam]) => id === app.registeredStudent.assignedExamId); else if (isStudent) filtered = []; filtered = filtered.filter(([id, exam]) => { const matchesSearch = !searchTerm || exam.title.toLowerCase().includes(searchTerm); const matchesFilter = !filter || (filter === 'active' && exam.status === 'active'); return matchesSearch && matchesFilter; }); if (filtered.length === 0) { list.innerHTML = '<p style="text-align:center;color:#718096;padding:40px;">' + (isStaff ? 'No exams yet. Create one!' : 'No exams assigned. Wait for teacher link.') + '</p>'; return; } const completedExams = Object.values(app.results).filter(r => r.userId === app.currentUser.uid).map(r => r.examId); list.innerHTML = filtered.map(([id, exam]) => { const isCompleted = completedExams.includes(id); return '<div class="exam-card"><h4>' + exam.title + '</h4><p><strong>Subject:</strong> ' + exam.subject + '</p><p><strong>Duration:</strong> ' + exam.duration + ' min</p><p><strong>Marks:</strong> ' + exam.totalMarks + '</p><p><strong>Questions:</strong> ' + exam.questions.length + '</p><span class="badge ' + (exam.status === 'active' ? 'badge-active' : 'badge-closed') + '">' + exam.status.toUpperCase() + '</span>' + (isCompleted ? '<span class="badge badge-assigned">✅ Completed</span>' : '') + (isStaff ? '<button class="btn-danger btn-sm" onclick="deleteExam(\'' + id + '\')" style="margin-top:12px;">🗑️ Delete</button>' : '') + (exam.status === 'active' && !isCompleted ? '<button class="btn-primary btn-sm" onclick="takeExam(\'' + id + '\')" style="margin-top:12px;width:100%;">📝 Take Exam</button>' : '') + (isCompleted ? '<button class="btn-secondary btn-sm" onclick="viewMyResult(\'' + id + '\')" style="margin-top:12px;width:100%;">📊 View Result</button>' : '') + '</div>'; }).join(''); };
-    
+    window.copyAndShare = function() { const btn = document.getElementById('btn-copy-share'); const link = btn.dataset.link; navigator.clipboard.writeText(link).then(() => { alert('✅ Link copied!\n\n1. WhatsApp will open\n2. Select contact\n3. Paste link (long press)\n4. Send!'); setTimeout(() => { window.open('https://wa.me/', '_blank'); }, 1500); }).catch(() => { prompt('Copy this link:', link); }); };
+    window.renderExams = function() { const list = document.getElementById('exam-list'); if (!list) return; const isStaff = app.isAdmin || app.isTeacher; const isStudent = !isStaff; const searchTerm = (document.getElementById('search-exam').value || '').toLowerCase(); const filter = document.getElementById('filter-exam').value; let filtered = Object.entries(app.exams); if (isStudent && app.registeredStudent && app.registeredStudent.assignedExamId) filtered = filtered.filter(([id, exam]) => id === app.registeredStudent.assignedExamId); else if (isStudent) filtered = []; filtered = filtered.filter(([id, exam]) => { const matchesSearch = !searchTerm || exam.title.toLowerCase().includes(searchTerm); const matchesFilter = !filter || (filter === 'active' && exam.status === 'active'); return matchesSearch && matchesFilter; }); if (filtered.length === 0) { list.innerHTML = '<p style="text-align:center;color:#718096;padding:40px;">' + (isStaff ? 'No exams yet. Create one!' : 'No exams assigned. Wait for teacher link.') + '</p>'; return; } const completedExams = Object.values(app.results).filter(r => r.userId === app.currentUser.uid).map(r => r.examId); list.innerHTML = filtered.map(([id, exam]) => { const isCompleted = completedExams.includes(id); return '<div class="exam-card"><h4>' + exam.title + '</h4><p><strong>Subject:</strong> ' + exam.subject + '</p><p><strong>Duration:</strong> ' + exam.duration + ' min</p><p><strong>Marks:</strong> ' + exam.totalMarks + '</p><p><strong>Questions:</strong> ' + exam.questions.length + '</p><span class="badge ' + (exam.status === 'active' ? 'badge-active' : 'badge-closed') + '">' + exam.status.toUpperCase() + '</span>' + (isCompleted ? '<span class="badge badge-assigned">✅ Completed</span>' : '') + (isStaff ? '<button class="btn-danger btn-sm" onclick="deleteExam(\'' + id + '\')" style="margin-top:12px;">🗑️ Delete</button>' : '') + (exam.status === 'active' && !isCompleted ? '<button class="btn-primary btn-sm" onclick="takeExam(\'' + id + '\')" style="margin-top:12px;width:100%;">📝 Take Exam</button>' : '') + (isCompleted ? '<button class="btn-secondary btn-sm" onclick="viewMyResult(\'' + id + '\')" style="margin-top:12px;width:100%;">📊 View Result</button>' : '') + '</div>'; }).join(''); };
     window.deleteExam = function(examId) { if (!app.isAdmin && !app.isTeacher) { alert('🔐 Staff only'); return; } if (!confirm('⚠️ Delete exam and all results?')) return; database.ref('exams/' + examId).remove().then(() => { const resultsToDelete = Object.entries(app.results).filter(([id, r]) => r.examId === examId).map(([id]) => 'results/' + id); if (resultsToDelete.length > 0) { const updates = {}; resultsToDelete.forEach(p => updates[p] = null); return database.ref().update(updates); } }).then(() => { alert('✅ Deleted!'); renderExams(); }).catch(err => alert('❌ Error: ' + err.message)); };
-    
     window.takeExam = function(examId) { if (!app.registeredStudent) { alert('📝 Register first!'); showView('register'); return; } const exam = app.exams[examId]; if (!exam) return; app.currentExam = { id: examId, ...exam }; app.timeRemaining = exam.duration * 60; document.getElementById('take-exam-title').textContent = exam.title; document.getElementById('exam-instructions-display').innerHTML = exam.instructions ? '<p><strong>Instructions:</strong> ' + exam.instructions + '</p>' : ''; const container = document.getElementById('exam-questions-container'); container.innerHTML = exam.questions.map((q, i) => '<div class="question-card" style="background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:16px;border:2px solid #e2e8f0;"><h4>Question ' + (i + 1) + ' (' + q.marks + ' marks)</h4><p style="margin-bottom:16px;">' + q.text + '</p><ul class="options-list" style="list-style:none;">' + (q.options.a ? '<li style="margin:8px 0;"><label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:8px;cursor:pointer;"><input type="radio" name="q' + i + '" value="a"/> ' + q.options.a + '</label></li>' : '') + (q.options.b ? '<li style="margin:8px 0;"><label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:8px;cursor:pointer;"><input type="radio" name="q' + i + '" value="b"/> ' + q.options.b + '</label></li>' : '') + (q.options.c ? '<li style="margin:8px 0;"><label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:8px;cursor:pointer;"><input type="radio" name="q' + i + '" value="c"/> ' + q.options.c + '</label></li>' : '') + (q.options.d ? '<li style="margin:8px 0;"><label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:8px;cursor:pointer;"><input type="radio" name="q' + i + '" value="d"/> ' + q.options.d + '</label></li>' : '') + '</ul></div>').join(''); showView('take-exam'); startTimer(); };
-    
     function startTimer() { const timerEl = document.getElementById('exam-timer'); app.timer = setInterval(() => { app.timeRemaining--; const m = Math.floor(app.timeRemaining / 60); const s = app.timeRemaining % 60; timerEl.textContent = '⏱️ ' + m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0'); if (app.timeRemaining <= 60) timerEl.classList.add('urgent'); if (app.timeRemaining <= 0) { clearInterval(app.timer); alert('⏰ Time up!'); submitExam(null, true); } }, 1000); }
-    
     window.submitExam = function(e, autoSubmit = false) { if (e) e.preventDefault(); if (!app.currentExam || !app.currentUser || !app.registeredStudent) return; if (!autoSubmit && !confirm('📤 Submit?')) return; clearInterval(app.timer); let score = 0, totalMarks = 0; const answers = {}; app.currentExam.questions.forEach((q, i) => { const selected = document.querySelector('input[name="q' + i + '"]:checked'); const userAnswer = selected ? selected.value : null; answers['q' + i] = userAnswer; totalMarks += q.marks; if (userAnswer === q.correct) score += q.marks; }); const percentage = Math.round((score / totalMarks) * 100); const testimony = document.getElementById('exam-testimony').value.trim(); const result = { examId: app.currentExam.id, examTitle: app.currentExam.title, studentEmail: app.currentUser.email || null, userId: app.currentUser.uid, studentName: app.registeredStudent.name, studentPhone: app.registeredStudent.phone, studentClass: app.registeredStudent.class, score, totalMarks, percentage, answers, submittedAt: Date.now(), autoSubmitted: autoSubmit }; const resultId = 'result_' + app.currentUser.uid + '_' + Date.now(); database.ref('results/' + resultId).set(result).then(() => { if (testimony) { const testimonyData = { examId: app.currentExam.id, examTitle: app.currentExam.title, studentEmail: app.currentUser.email || null, userId: app.currentUser.uid, studentName: app.registeredStudent.name, studentClass: app.registeredStudent.class, testimony, score, percentage, submittedAt: Date.now() }; database.ref('testimonies/' + Date.now()).set(testimonyData); } document.getElementById('result-exam-title').textContent = app.currentExam.title; document.getElementById('result-score').textContent = percentage + '%'; document.getElementById('result-marks').textContent = score + ' / ' + totalMarks; document.getElementById('result-date').textContent = '📅 ' + new Date().toLocaleString(); showView('exam-result'); app.currentExam = null; }).catch(err => alert('❌ Error: ' + err.message)); };
-    
     window.viewMyResult = function(examId) { const result = Object.values(app.results).find(r => r.examId === examId && r.userId === app.currentUser.uid); if (!result) return; document.getElementById('result-exam-title').textContent = result.examTitle; document.getElementById('result-score').textContent = result.percentage + '%'; document.getElementById('result-marks').textContent = result.score + ' / ' + result.totalMarks; document.getElementById('result-date').textContent = '📅 ' + new Date(result.submittedAt).toLocaleString(); showView('exam-result'); };
-    
     window.renderStudents = function() { const tbody = document.getElementById('students-table-body'); if (!tbody) return; const isStaff = app.isAdmin || app.isTeacher; if (!isStaff) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#ef476f;padding:40px;">🔐 Staff only</td></tr>'; return; } const searchTerm = (document.getElementById('search-student').value || '').toLowerCase(); let sorted = Object.values(app.results).sort((a, b) => b.percentage - a.percentage); sorted = sorted.filter(r => !searchTerm || (r.studentName && r.studentName.toLowerCase().includes(searchTerm))); const totalPages = Math.ceil(sorted.length / app.recordsPerPage); if (app.currentPage > totalPages) app.currentPage = totalPages || 1; const start = (app.currentPage - 1) * app.recordsPerPage; const pageData = sorted.slice(start, start + app.recordsPerPage); if (pageData.length === 0) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#718096;padding:40px;">No students</td></tr>'; renderPagination(0); return; } tbody.innerHTML = pageData.map((r, i) => { const rank = start + i + 1; let rc = 'rank-badge'; if (rank === 1) rc += ' rank-1'; else if (rank === 2) rc += ' rank-2'; else if (rank === 3) rc += ' rank-3'; return '<tr><td><span class="' + rc + '">#' + rank + '</span></td><td>' + (r.studentName || 'N/A') + '</td><td>' + (r.studentPhone || 'N/A') + '</td><td>' + (r.studentClass || 'N/A') + '</td><td>' + r.examTitle + '</td><td>' + r.score + '/' + r.totalMarks + '</td><td><strong>' + r.percentage + '%</strong></td><td><button class="btn-danger btn-sm" onclick="deleteResult(\'' + r.examId + '\',\'' + r.userId + '\',\'' + new Date(r.submittedAt).toISOString() + '\')"><i class="fas fa-trash"></i></button></td></tr>'; }).join(''); renderPagination(totalPages); };
-    
     window.deleteResult = function(examId, studentId, submittedAt) { if (!app.isAdmin && !app.isTeacher) return; if (!confirm('Delete this result?')) return; const rt = Object.entries(app.results).find(([id, r]) => r.examId === examId && r.userId === studentId && new Date(r.submittedAt).toISOString() === submittedAt); if (rt) { database.ref('results/' + rt[0]).remove().then(() => { alert('✅ Deleted!'); renderStudents(); }).catch(err => alert('❌ Error: ' + err.message)); } };
-    
     function renderPagination(totalPages) { const p = document.getElementById('pagination'); if (!p) return; if (totalPages <= 1) { p.innerHTML = ''; return; } p.innerHTML = '<button onclick="changePage(1)" ' + (app.currentPage===1?'disabled':'') + '><i class="fas fa-angle-double-left"></i></button><button onclick="changePage(' + (app.currentPage-1) + ')" ' + (app.currentPage===1?'disabled':'') + '><i class="fas fa-angle-left"></i></button><span class="pagination-info" style="margin:0 16px;">Page ' + app.currentPage + ' of ' + totalPages + '</span><button onclick="changePage(' + (app.currentPage+1) + ')" ' + (app.currentPage===totalPages?'disabled':'') + '><i class="fas fa-angle-right"></i></button><button onclick="changePage(' + totalPages + ')" ' + (app.currentPage===totalPages?'disabled':'') + '><i class="fas fa-angle-double-right"></i></button>'; }
-    
     window.changePage = function(page) { app.currentPage = page; renderStudents(); };
     
     window.exportStudents = function() { if (!app.isAdmin && !app.isTeacher) { alert('🔐 Staff only'); return; } let csv = 'Rank,Name,Phone,Class,Exam,Score,Total,Percentage,Date\n'; Object.values(app.results).sort((a, b) => b.percentage - a.percentage).forEach((r, i) => { csv += (i+1) + ',"' + (r.studentName || '') + '","' + (r.studentPhone || '') + '","' + (r.studentClass || '') + '","' + r.examTitle + '",' + r.score + ',' + r.totalMarks + ',' + r.percentage + '%,' + new Date(r.submittedAt).toLocaleString() + '\n'; }); const blob = new Blob([csv], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Students_' + new Date().toISOString().split('T')[0] + '.csv'; a.click(); alert('✅ Exported!'); };
