@@ -171,13 +171,82 @@
     
     function loadAllData() { database.ref('exams').on('value', snapshot => { app.exams = snapshot.val() || {}; renderExams(); }); database.ref('results').on('value', snapshot => { app.results = snapshot.val() || {}; }); if (app.currentUser) { database.ref('students/' + app.currentUser.uid).once('value').then(snapshot => { const student = snapshot.val(); if (student) app.registeredStudent = student; }); } }
     
-    window.renderExams = function() { const list = document.getElementById('exam-list'); if (!list) return; let filtered = Object.entries(app.exams); if (app.assignedExamId) filtered = filtered.filter(([id, exam]) => id === app.assignedExamId); else if (app.registeredStudent && app.registeredStudent.assignedExamId) filtered = filtered.filter(([id, exam]) => id === app.registeredStudent.assignedExamId); else if (!app.assignedExamId) filtered = []; if (filtered.length === 0) { list.innerHTML = '<p style="text-align:center;color:#718096;padding:40px;">No exams assigned. Wait for teacher link.</p>'; return; } const completedExams = Object.values(app.results).filter(r => r.userId === app.currentUser.uid).map(r => r.examId); list.innerHTML = filtered.map(([id, exam]) => { const isCompleted = completedExams.includes(id); return '<div class="exam-card"><h4>' + exam.title + '</h4><p><strong>Subject:</strong> ' + exam.subject + '</p><p><strong>Duration:</strong> ' + exam.duration + ' min</p><p><strong>Marks:</strong> ' + exam.totalMarks + '</p><p><strong>Questions:</strong> ' + exam.questions.length + '</p><span class="badge badge-active">' + exam.status.toUpperCase() + '</span>' + (isCompleted ? '<span class="badge" style="background:#d1fae5;color:#065f46;">✅ Completed</span>' : '') + (exam.status === 'active' && !isCompleted ? '<button class="btn-primary btn-sm" onclick="takeExam(\'' + id + '\')" style="margin-top:12px;width:100%;">📝 Take Exam</button>' : '') + (isCompleted ? '<button class="btn-secondary btn-sm" onclick="viewMyResult(\'' + id + '\')" style="margin-top:12px;width:100%;">📊 View Result</button>' : '') + '</div>'; }).join(''); };
+    window.renderExams = function() { const list = document.getElementById('exam-list'); if (!list) return; let filtered = Object.entries(app.exams); if (app.assignedExamId) filtered = filtered.filter(([id, exam]) => id === app.assignedExamId); else if (app.registeredStudent && app.registeredStudent.assignedExamId) filtered = filtered.filter(([id, exam]) => id === app.registeredStudent.assignedExamId); else if (!app.assignedExamId) filtered = []; if (filtered.length === 0) { list.innerHTML = '<p style="text-align:center;color:#718096;padding:40px;">No exams assigned. Wait for teacher link.</p>'; return; } const completedExams = Object.values(app.results).filter(r => r.userId === app.currentUser.uid).map(r => r.examId); list.innerHTML = filtered.map(([id, exam]) => { const isCompleted = completedExams.includes(id); return '<div class="exam-card"><h4>' + exam.title + '</h4><p><strong>Subject:</strong> ' + exam.subject + '</p><p><strong>Duration:</strong> ' + exam.duration + ' min</p><p><strong>Marks:</strong> ' + exam.totalMarks + '</p><p><strong>Questions:</strong> ' + (exam.questions ? exam.questions.length : 0) + '</p><span class="badge badge-active">' + exam.status.toUpperCase() + '</span>' + (isCompleted ? '<span class="badge" style="background:#d1fae5;color:#065f46;">✅ Completed</span>' : '') + (exam.status === 'active' && !isCompleted ? '<button class="btn-primary btn-sm" onclick="takeExam(\'' + id + '\')" style="margin-top:12px;width:100%;">📝 Take Exam</button>' : '') + (isCompleted ? '<button class="btn-secondary btn-sm" onclick="viewMyResult(\'' + id + '\')" style="margin-top:12px;width:100%;">📊 View Result</button>' : '') + '</div>'; }).join(''); };
     
-    window.takeExam = function(examId) { if (!app.registeredStudent) { alert('📝 Register first!'); showView('register'); return; } const exam = app.exams[examId]; if (!exam) return; app.currentExam = { id: examId, ...exam }; app.timeRemaining = exam.duration * 60; document.getElementById('take-exam-title').textContent = exam.title; document.getElementById('exam-instructions-display').innerHTML = exam.instructions ? '<p><strong>Instructions:</strong> ' + exam.instructions + '</p>' : ''; const container = document.getElementById('exam-questions-container'); container.innerHTML = exam.questions.map((q, i) => '<div class="question-card" style="background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:16px;border:2px solid #e2e8f0;"><h4>Question ' + (i + 1) + ' (' + q.marks + ' marks)</h4><p style="margin-bottom:16px;">' + q.text + '</p><ul class="options-list" style="list-style:none;">' + (q.options.a ? '<li style="margin:8px 0;"><label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:8px;cursor:pointer;"><input type="radio" name="q' + i + '" value="a"/> ' + q.options.a + '</label></li>' : '') + (q.options.b ? '<li style="margin:8px 0;"><label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:8px;cursor:pointer;"><input type="radio" name="q' + i + '" value="b"/> ' + q.options.b + '</label></li>' : '') + (q.options.c ? '<li style="margin:8px 0;"><label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:8px;cursor:pointer;"><input type="radio" name="q' + i + '" value="c"/> ' + q.options.c + '</label></li>' : '') + (q.options.d ? '<li style="margin:8px 0;"><label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:8px;cursor:pointer;"><input type="radio" name="q' + i + '" value="d"/> ' + q.options.d + '</label></li>' : '') + '</ul></div>').join(''); showView('take-exam'); startTimer(); };
+    // 🔥 UPDATED: Matches YOUR question structure
+    window.takeExam = function(examId) {
+      if (!app.registeredStudent) { alert('📝 Register first!'); showView('register'); return; }
+      const exam = app.exams[examId];
+      if (!exam) return;
+      app.currentExam = { id: examId, ...exam };
+      app.timeRemaining = exam.duration * 60;
+      document.getElementById('take-exam-title').textContent = exam.title;
+      document.getElementById('exam-instructions-display').innerHTML = exam.instructions ? '<p><strong>Instructions:</strong> ' + exam.instructions + '</p>' : '';
+      const container = document.getElementById('exam-questions-container');
+      
+      container.innerHTML = exam.questions.map((q, i) => {
+        // Support BOTH formats (yours and standard)
+        const questionText = q.text || q.question || '';
+        const options = q.options || {};
+        const optionKeys = Object.keys(options);
+        
+        return '<div class="question-card" style="background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:16px;border:2px solid #e2e8f0;">' +
+          '<h4>Question ' + (i + 1) + ' (' + q.marks + ' marks)</h4>' +
+          '<p style="margin-bottom:16px;">' + questionText + '</p>' +
+          '<ul class="options-list" style="list-style:none;">' +
+          optionKeys.map((key) => {
+            const value = options[key];
+            return '<li style="margin:8px 0;">' +
+              '<label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:8px;cursor:pointer;">' +
+              '<input type="radio" name="q' + i + '" value="' + key + '"/> ' + value +
+              '</label></li>';
+          }).join('') +
+          '</ul></div>';
+      }).join('');
+      
+      showView('take-exam');
+      startTimer();
+    };
     
     function startTimer() { const timerEl = document.getElementById('exam-timer'); app.timer = setInterval(() => { app.timeRemaining--; const m = Math.floor(app.timeRemaining / 60); const s = app.timeRemaining % 60; timerEl.textContent = '⏱️ ' + m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0'); if (app.timeRemaining <= 60) timerEl.classList.add('urgent'); if (app.timeRemaining <= 0) { clearInterval(app.timer); alert('⏰ Time up!'); submitExam(null, true); } }, 1000); }
     
-    window.submitExam = function(e, autoSubmit = false) { if (e) e.preventDefault(); if (!app.currentExam || !app.currentUser || !app.registeredStudent) return; if (!autoSubmit && !confirm('📤 Submit?')) return; clearInterval(app.timer); let score = 0, totalMarks = 0; const answers = {}; app.currentExam.questions.forEach((q, i) => { const selected = document.querySelector('input[name="q' + i + '"]:checked'); const userAnswer = selected ? selected.value : null; answers['q' + i] = userAnswer; totalMarks += q.marks; if (userAnswer === q.correct) score += q.marks; }); const percentage = Math.round((score / totalMarks) * 100); const testimony = document.getElementById('exam-testimony').value.trim(); const result = { examId: app.currentExam.id, examTitle: app.currentExam.title, studentEmail: app.currentUser.email || null, userId: app.currentUser.uid, studentName: app.registeredStudent.name, studentPhone: app.registeredStudent.phone, studentClass: app.registeredStudent.class, score, totalMarks, percentage, answers, submittedAt: Date.now(), autoSubmitted: autoSubmit }; const resultId = 'result_' + app.currentUser.uid + '_' + Date.now(); database.ref('results/' + resultId).set(result).then(() => { if (testimony) { const testimonyData = { examId: app.currentExam.id, examTitle: app.currentExam.title, studentEmail: app.currentUser.email || null, userId: app.currentUser.uid, studentName: app.registeredStudent.name, studentClass: app.registeredStudent.class, testimony, score, percentage, submittedAt: Date.now() }; database.ref('testimonies/' + Date.now()).set(testimonyData); } document.getElementById('result-exam-title').textContent = app.currentExam.title; document.getElementById('result-score').textContent = percentage + '%'; document.getElementById('result-marks').textContent = score + ' / ' + totalMarks; document.getElementById('result-date').textContent = '📅 ' + new Date().toLocaleString(); showView('exam-result'); app.currentExam = null; }).catch(err => alert('❌ Error: ' + err.message)); };
+    // 🔥 UPDATED: Matches YOUR answer structure
+    window.submitExam = function(e, autoSubmit = false) {
+      if (e) e.preventDefault();
+      if (!app.currentExam || !app.currentUser || !app.registeredStudent) return;
+      if (!autoSubmit && !confirm('📤 Submit?')) return;
+      clearInterval(app.timer);
+      let score = 0, totalMarks = 0;
+      const answers = {};
+      
+      app.currentExam.questions.forEach((q, i) => {
+        const selected = document.querySelector('input[name="q' + i + '"]:checked');
+        const userAnswer = selected ? selected.value : null;
+        answers['q' + i] = userAnswer;
+        totalMarks += q.marks;
+        
+        // Support BOTH answer formats (yours: answer, standard: correct)
+        const correctAnswer = q.correct || q.answer || '';
+        if (userAnswer == correctAnswer) score += q.marks;
+      });
+      
+      const percentage = Math.round((score / totalMarks) * 100);
+      const testimony = document.getElementById('exam-testimony').value.trim();
+      const result = { examId: app.currentExam.id, examTitle: app.currentExam.title, studentEmail: app.currentUser.email || null, userId: app.currentUser.uid, studentName: app.registeredStudent.name, studentPhone: app.registeredStudent.phone, studentClass: app.registeredStudent.class, score, totalMarks, percentage, answers, submittedAt: Date.now(), autoSubmitted: autoSubmit };
+      const resultId = 'result_' + app.currentUser.uid + '_' + Date.now();
+      database.ref('results/' + resultId).set(result).then(() => {
+        if (testimony) {
+          const testimonyData = { examId: app.currentExam.id, examTitle: app.currentExam.title, studentEmail: app.currentUser.email || null, userId: app.currentUser.uid, studentName: app.registeredStudent.name, studentClass: app.registeredStudent.class, testimony, score, percentage, submittedAt: Date.now() };
+          database.ref('testimonies/' + Date.now()).set(testimonyData);
+        }
+        document.getElementById('result-exam-title').textContent = app.currentExam.title;
+        document.getElementById('result-score').textContent = percentage + '%';
+        document.getElementById('result-marks').textContent = score + ' / ' + totalMarks;
+        document.getElementById('result-date').textContent = '📅 ' + new Date().toLocaleString();
+        showView('exam-result');
+        app.currentExam = null;
+      }).catch(err => alert('❌ Error: ' + err.message));
+    };
     
     window.viewMyResult = function(examId) { const result = Object.values(app.results).find(r => r.examId === examId && r.userId === app.currentUser.uid); if (!result) return; document.getElementById('result-exam-title').textContent = result.examTitle; document.getElementById('result-score').textContent = result.percentage + '%'; document.getElementById('result-marks').textContent = result.score + ' / ' + result.totalMarks; document.getElementById('result-date').textContent = '📅 ' + new Date(result.submittedAt).toLocaleString(); showView('exam-result'); };
     
