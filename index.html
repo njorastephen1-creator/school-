@@ -95,16 +95,16 @@
           <h3>Create Exam</h3>
           <form id="create-exam-form" onsubmit="createExam(event)">
             <div class="form-group"><label>Title *</label><input type="text" id="exam-title" required/></div>
-            <div class="form-group"><label>Subject *</label><input type="text" id="exam-subject" required/></div>
-            <div class="form-group"><label>Duration (min) *</label><input type="number" id="exam-duration" required min="1"/></div>
-            <div class="form-group"><label>Total Marks *</label><input type="number" id="exam-marks" required min="1"/></div>
+            <div class="form-group"><label>Subject </label><input type="text" id="exam-subject" required/></div>
+            <div class="form-group"><label>Duration (min) </label><input type="number" id="exam-duration" required min="1"/></div>
+            <div class="form-group"><label>Total Marks </label><input type="number" id="exam-marks" required min="1"/></div>
             <div class="form-group"><label>Instructions</label><textarea id="exam-instructions" rows="3"></textarea></div>
             <div class="share-section">
               <h4>Share on WhatsApp</h4>
               <div class="share-link" id="exam-share-link" style="display:none;"></div>
               <button type="button" class="btn-success" onclick="copyAndShare()" style="display:none;margin-top:12px;" id="btn-copy-share">Copy & Share</button>
             </div>
-            <div class="form-group"><label>Questions *</label><div id="questions-container"></div><button type="button" class="btn-secondary" onclick="addQuestion()" style="margin-top:12px;">Add Question</button></div>
+            <div class="form-group"><label>Questions </label><div id="questions-container"></div><button type="button" class="btn-secondary" onclick="addQuestion()" style="margin-top:12px;">Add Question</button></div>
             <button type="submit" class="btn-primary">Publish</button>
           </form>
         </div>
@@ -113,8 +113,8 @@
         <div class="card">
           <h3>Manage Teachers</h3>
           <form onsubmit="addTeacher(event)" style="margin-bottom:24px;">
-            <div class="form-group"><label>Email *</label><input type="email" id="teacher-email" required/></div>
-            <div class="form-group"><label>Name *</label><input type="text" id="teacher-name" required/></div>
+            <div class="form-group"><label>Email </label><input type="email" id="teacher-email" required/></div>
+            <div class="form-group"><label>Name </label><input type="text" id="teacher-name" required/></div>
             <button type="submit" class="btn-primary">Add</button>
           </form>
           <div id="teachers-list"></div>
@@ -305,7 +305,28 @@
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#718096;padding:40px;">No students yet</td></tr>'; 
         return; 
       } 
-      tbody.innerHTML = sorted.map((r, i) => '<tr><td><span class="rank-badge">#' + (i+1) + '</span></td><td>' + (r.studentName || 'N/A') + '</td><td>' + (r.studentPhone || 'N/A') + '</td><td>' + (r.studentClass || 'N/A') + '</td><td>' + r.examTitle + '</td><td>' + r.score + '/' + r.totalMarks + '</td><td><strong>' + r.percentage + '%</strong></td><td><button class="btn-danger btn-sm" onclick="deleteResult(\'' + r.examId + '\',\'' + r.userId + '\',\'' + new Date(r.submittedAt).toISOString() + '\')"><i class="fas fa-trash"></i></button></td></tr>').join(''); 
+      tbody.innerHTML = sorted.map((r, i) => '<tr><td><span class="rank-badge">#' + (i+1) + '</span></td><td>' + (r.studentName || 'N/A') + '</td><td>' + (r.studentPhone || 'N/A') + '</td><td>' + (r.studentClass || 'N/A') + '</td><td>' + r.examTitle + '</td><td>' + r.score + '/' + r.totalMarks + '</td><td><strong>' + r.percentage + '%</strong></td><td style="text-align:center;"><button class="btn-danger btn-sm" onclick="deleteResult(\'' + r.examId + '\',\'' + r.userId + '\',\'' + new Date(r.submittedAt).toISOString() + '\')"><i class="fas fa-trash"></i></button></td></tr>').join('');
+      
+      renderPagination(totalPages);
+    };
+
+    function renderPagination(totalPages) {
+      const p = document.getElementById('pagination');
+      if (!p) return;
+      if (totalPages <= 1) {
+        p.innerHTML = '';
+        return;
+      }
+      p.innerHTML = '<button onclick="changePage(1)" ' + (app.currentPage===1?'disabled':'') + '><i class="fas fa-angle-double-left"></i></button>' +
+        '<button onclick="changePage(' + (app.currentPage-1) + ')" ' + (app.currentPage===1?'disabled':'') + '><i class="fas fa-angle-left"></i></button>' +
+        '<span class="pagination-info" style="margin:0 16px;">Page ' + app.currentPage + ' of ' + totalPages + '</span>' +
+        '<button onclick="changePage(' + (app.currentPage+1) + ')" ' + (app.currentPage===totalPages?'disabled':'') + '><i class="fas fa-angle-right"></i></button>' +
+        '<button onclick="changePage(' + totalPages + ')" ' + (app.currentPage===totalPages?'disabled':'') + '><i class="fas fa-angle-double-right"></i></button>';
+    }
+
+    window.changePage = function(page) {
+      app.currentPage = page;
+      renderStudents();
     };
 
     window.deleteResult = function(examId, studentId, submittedAt) { 
