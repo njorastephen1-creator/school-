@@ -203,13 +203,30 @@
       if (viewName === 'teachers') renderTeachers();
     };
 
+    // 🔥 UPDATED: Properly loads and renders data
     function loadAllData() {
+      console.log('🔄 Loading all data...');
+      
       // Exams from OLD Firebase
-      oldDb.ref('exams').on('value', snapshot => { app.exams = snapshot.val() || {}; renderExams(); });
+      oldDb.ref('exams').on('value', snapshot => { 
+        app.exams = snapshot.val() || {}; 
+        console.log('📚 Exams loaded:', Object.keys(app.exams).length);
+        renderExams(); 
+      });
+      
       // Results from NEW Firebase (where students submit)
-      newDb.ref('results').on('value', snapshot => { app.results = snapshot.val() || {}; });
+      newDb.ref('results').on('value', snapshot => { 
+        app.results = snapshot.val() || {}; 
+        console.log('📊 Results loaded:', Object.keys(app.results).length);
+        renderStudents(); // 🔥 Call renderStudents when data loads
+      });
+      
       // Testimonies from NEW Firebase (where students submit)
-      newDb.ref('testimonies').on('value', snapshot => { app.testimonies = snapshot.val() || {}; });
+      newDb.ref('testimonies').on('value', snapshot => { 
+        app.testimonies = snapshot.val() || {}; 
+        console.log('💬 Testimonies loaded:', Object.keys(app.testimonies).length);
+        renderTestimonies(); // 🔥 Call renderTestimonies when data loads
+      });
     }
 
     window.addQuestion = function() { app.questionCount++; const container = document.getElementById('questions-container'); const questionDiv = document.createElement('div'); questionDiv.style.cssText = 'background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:16px;border:2px solid #e2e8f0;'; questionDiv.innerHTML = '<h4>Question ' + app.questionCount + '</h4><div class="form-group"><label>Question Text *</label><textarea name="q' + app.questionCount + '_text" rows="2" required></textarea></div><div class="form-group"><label>Option A *</label><input type="text" name="q' + app.questionCount + '_a" required/></div><div class="form-group"><label>Option B *</label><input type="text" name="q' + app.questionCount + '_b" required/></div><div class="form-group"><label>Option C</label><input type="text" name="q' + app.questionCount + '_c"/></div><div class="form-group"><label>Option D</label><input type="text" name="q' + app.questionCount + '_d"/></div><div class="form-group"><label>Correct Answer *</label><select name="q' + app.questionCount + '_correct" required><option value="">Select</option><option value="a">A</option><option value="b">B</option><option value="c">C</option><option value="d">D</option></select></div><div class="form-group"><label>Marks *</label><input type="number" name="q' + app.questionCount + '_marks" required min="1" value="1"/></div><button type="button" class="btn-danger btn-sm" onclick="this.parentElement.remove()">🗑️ Remove</button>'; container.appendChild(questionDiv); };
@@ -279,82 +296,92 @@
 
     window.deleteExam = function(examId) { if (!confirm('⚠️ Delete exam and all results?')) return; oldDb.ref('exams/' + examId).remove().then(() => { alert('✅ Deleted!'); }).catch(err => alert('❌ Error: ' + err.message)); };
 
-    // 🔥 UPDATED: Reads from NEW Firebase
-    window.renderStudents = function() { const tbody = document.getElementById('students-table-body'); if (!tbody) return; let sorted = Object.values(app.results).sort((a, b) => b.percentage - a.percentage); if (sorted.length === 0) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#718096;padding:40px;">No students yet</td></tr>'; return; } tbody.innerHTML = sorted.map((r, i) => '<tr><td><span class="rank-badge">#' + (i+1) + '</span></td><td>' + (r.studentName || 'N/A') + '</td><td>' + (r.studentPhone || 'N/A') + '</td><td>' + (r.studentClass || 'N/A') + '</td><td>' + r.examTitle + '</td><td>' + r.score + '/' + r.totalMarks + '</td><td><strong>' + r.percentage + '%</strong></td><td><button class="btn-danger btn-sm" onclick="deleteResult(\'' + r.examId + '\',\'' + r.userId + '\',\'' + new Date(r.submittedAt).toISOString() + '\')"><i class="fas fa-trash"></i></button></td></tr>').join(''); };
+    window.renderStudents = function() { 
+      const tbody = document.getElementById('students-table-body'); 
+      if (!tbody) return; 
+      let sorted = Object.values(app.results).sort((a, b) => b.percentage - a.percentage); 
+      console.log('📊 Rendering students:', sorted.length);
+      if (sorted.length === 0) { 
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#718096;padding:40px;">No students yet</td></tr>'; 
+        return; 
+      } 
+      tbody.innerHTML = sorted.map((r, i) => '<tr><td><span class="rank-badge">#' + (i+1) + '</span></td><td>' + (r.studentName || 'N/A') + '</td><td>' + (r.studentPhone || 'N/A') + '</td><td>' + (r.studentClass || 'N/A') + '</td><td>' + r.examTitle + '</td><td>' + r.score + '/' + r.totalMarks + '</td><td><strong>' + r.percentage + '%</strong></td><td><button class="btn-danger btn-sm" onclick="deleteResult(\'' + r.examId + '\',\'' + r.userId + '\',\'' + new Date(r.submittedAt).toISOString() + '\')"><i class="fas fa-trash"></i></button></td></tr>').join(''); 
+    };
 
-window.deleteResult = function(examId, studentId, submittedAt) { 
-  if (!confirm('Delete this result?')) return; 
-  const rt = Object.entries(app.results).find(([id, r]) => r.examId === examId && r.userId === studentId && new Date(r.submittedAt).toISOString() === submittedAt); 
-  if (rt) { 
-    newDb.ref('results/' + rt[0]).remove().then(() => { 
-      alert('✅ Deleted!'); 
-      renderStudents(); 
-    }).catch(err => alert('❌ Error: ' + err.message)); 
-  } 
-};
+    window.deleteResult = function(examId, studentId, submittedAt) { 
+      if (!confirm('Delete this result?')) return; 
+      const rt = Object.entries(app.results).find(([id, r]) => r.examId === examId && r.userId === studentId && new Date(r.submittedAt).toISOString() === submittedAt); 
+      if (rt) { 
+        newDb.ref('results/' + rt[0]).remove().then(() => { 
+          alert('✅ Deleted!'); 
+          renderStudents(); 
+        }).catch(err => alert('❌ Error: ' + err.message)); 
+      } 
+    };
 
-window.exportStudents = function() { 
-  let csv = 'Rank,Name,Phone,Class,Exam,Score,Total,Percentage,Date\n'; 
-  Object.values(app.results).sort((a, b) => b.percentage - a.percentage).forEach((r, i) => { 
-    csv += (i+1) + ',"' + (r.studentName || '') + '","' + (r.studentPhone || '') + '","' + (r.studentClass || '') + '","' + r.examTitle + '",' + r.score + ',' + r.totalMarks + ',' + r.percentage + '%,' + new Date(r.submittedAt).toLocaleString() + '\n'; 
-  }); 
-  const blob = new Blob([csv], { type: 'text/csv' }); 
-  const a = document.createElement('a'); 
-  a.href = URL.createObjectURL(blob); 
-  a.download = 'Students_' + new Date().toISOString().split('T')[0] + '.csv'; 
-  a.click(); 
-  alert('✅ Exported!'); 
-};
+    window.exportStudents = function() { 
+      let csv = 'Rank,Name,Phone,Class,Exam,Score,Total,Percentage,Date\n'; 
+      Object.values(app.results).sort((a, b) => b.percentage - a.percentage).forEach((r, i) => { 
+        csv += (i+1) + ',"' + (r.studentName || '') + '","' + (r.studentPhone || '') + '","' + (r.studentClass || '') + '","' + r.examTitle + '",' + r.score + ',' + r.totalMarks + ',' + r.percentage + '%,' + new Date(r.submittedAt).toLocaleString() + '\n'; 
+      }); 
+      const blob = new Blob([csv], { type: 'text/csv' }); 
+      const a = document.createElement('a'); 
+      a.href = URL.createObjectURL(blob); 
+      a.download = 'Students_' + new Date().toISOString().split('T')[0] + '.csv'; 
+      a.click(); 
+      alert('✅ Exported!'); 
+    };
 
-window.renderTestimonies = function() { 
-  const list = document.getElementById('testimonies-list'); 
-  if (!list) return; 
-  const filtered = Object.values(app.testimonies); 
-  if (filtered.length === 0) { 
-    list.innerHTML = '<p style="text-align:center;color:#718096;padding:40px;">No testimonies</p>'; 
-    return; 
-  } 
-  list.innerHTML = filtered.map(t => '<div class="testimony-card"><h4>💬 ' + (t.studentName || 'Anonymous') + ' - <span style="color:#667eea;">' + t.percentage + '%</span></h4><p>"' + t.testimony + '"</p><div class="meta" style="color:#64748b;font-size:13px;margin-top:8px;"><strong>Exam:</strong> ' + t.examTitle + ' | <strong>Class:</strong> ' + t.studentClass + ' | <strong>Date:</strong> ' + new Date(t.submittedAt).toLocaleDateString() + '</div></div>').join(''); 
-};
+    window.renderTestimonies = function() { 
+      const list = document.getElementById('testimonies-list'); 
+      if (!list) return; 
+      const filtered = Object.values(app.testimonies); 
+      console.log('💬 Testimonies data:', filtered.length);
+      if (filtered.length === 0) { 
+        list.innerHTML = '<p style="text-align:center;color:#718096;padding:40px;">No testimonies</p>'; 
+        return; 
+      } 
+      list.innerHTML = filtered.map(t => '<div class="testimony-card"><h4>💬 ' + (t.studentName || 'Anonymous') + ' - <span style="color:#667eea;">' + t.percentage + '%</span></h4><p>"' + t.testimony + '"</p><div class="meta" style="color:#64748b;font-size:13px;margin-top:8px;"><strong>Exam:</strong> ' + t.examTitle + ' | <strong>Class:</strong> ' + t.studentClass + ' | <strong>Date:</strong> ' + new Date(t.submittedAt).toLocaleDateString() + '</div></div>').join(''); 
+    };
 
-window.addTeacher = function(e) { 
-  e.preventDefault(); 
-  if (!app.isAdmin) { alert('🔐 Admin only'); return; } 
-  const email = document.getElementById('teacher-email').value.trim(); 
-  const name = document.getElementById('teacher-name').value.trim(); 
-  const password = 'Teacher' + Date.now(); 
-  auth.createUserWithEmailAndPassword(email, password).then(uc => oldDb.ref('teachers/' + uc.user.uid).set({ email, name, addedBy: app.currentUser.email, addedAt: Date.now() })).then(() => { 
-    alert('✅ Teacher added!\nEmail: ' + email + '\nPassword: ' + password); 
-    e.target.reset(); 
-    renderTeachers(); 
-  }).catch(err => alert('❌ Error: ' + err.message)); 
-};
+    window.addTeacher = function(e) { 
+      e.preventDefault(); 
+      if (!app.isAdmin) { alert('🔐 Admin only'); return; } 
+      const email = document.getElementById('teacher-email').value.trim(); 
+      const name = document.getElementById('teacher-name').value.trim(); 
+      const password = 'Teacher' + Date.now(); 
+      auth.createUserWithEmailAndPassword(email, password).then(uc => oldDb.ref('teachers/' + uc.user.uid).set({ email, name, addedBy: app.currentUser.email, addedAt: Date.now() })).then(() => { 
+        alert('✅ Teacher added!\nEmail: ' + email + '\nPassword: ' + password); 
+        e.target.reset(); 
+        renderTeachers(); 
+      }).catch(err => alert('❌ Error: ' + err.message)); 
+    };
 
-function renderTeachers() { 
-  const list = document.getElementById('teachers-list'); 
-  if (!list) return; 
-  oldDb.ref('teachers').once('value').then(snapshot => { 
-    const teachers = snapshot.val() || {}; 
-    if (Object.keys(teachers).length === 0) { 
-      list.innerHTML = '<p style="color:#718096;text-align:center;padding:20px;">No teachers yet</p>'; 
-      return; 
-    } 
-    list.innerHTML = Object.entries(teachers).map(([uid, t]) => '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:8px;"><div><strong>' + t.name + '</strong><br><small style="color:#718096;">' + t.email + '</small></div><button class="btn-danger btn-sm" onclick="removeTeacher(\'' + uid + '\')">🗑️ Remove</button></div>').join(''); 
-  }); 
-}
+    function renderTeachers() { 
+      const list = document.getElementById('teachers-list'); 
+      if (!list) return; 
+      oldDb.ref('teachers').once('value').then(snapshot => { 
+        const teachers = snapshot.val() || {}; 
+        if (Object.keys(teachers).length === 0) { 
+          list.innerHTML = '<p style="color:#718096;text-align:center;padding:20px;">No teachers yet</p>'; 
+          return; 
+        } 
+        list.innerHTML = Object.entries(teachers).map(([uid, t]) => '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:8px;"><div><strong>' + t.name + '</strong><br><small style="color:#718096;">' + t.email + '</small></div><button class="btn-danger btn-sm" onclick="removeTeacher(\'' + uid + '\')">🗑️ Remove</button></div>').join(''); 
+      }); 
+    }
 
-window.removeTeacher = function(uid) { 
-  if (!confirm('Remove this teacher?')) return; 
-  oldDb.ref('teachers/' + uid).remove().then(() => { 
-    alert('✅ Teacher removed'); 
-    renderTeachers(); 
-  }); 
-};
+    window.removeTeacher = function(uid) { 
+      if (!confirm('Remove this teacher?')) return; 
+      oldDb.ref('teachers/' + uid).remove().then(() => { 
+        alert('✅ Teacher removed'); 
+        renderTeachers(); 
+      }); 
+    };
 
-window.addEventListener('DOMContentLoaded', function() { 
-  console.log('✅ Admin Portal Ready!'); 
-  if (!app.currentUser) document.getElementById('auth-warning').style.display = 'block'; 
-});
-</script>
+    window.addEventListener('DOMContentLoaded', function() { 
+      console.log('✅ Admin Portal Ready!'); 
+      if (!app.currentUser) document.getElementById('auth-warning').style.display = 'block'; 
+    });
+  </script>
 </body>
 </html>
