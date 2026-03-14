@@ -43,36 +43,36 @@
     <header class="header">
       <h1>🎓 Exam Portal - Student</h1>
       <nav class="nav">
-        <button class="nav-btn active" id="btn-exams" onclick="showView('exams')">📚 My Exams</button>
-        <button class="nav-btn" id="btn-register" onclick="showView('register')">📝 Register</button>
+        <button class="nav-btn active" id="btn-exams" onclick="showView('exams')"> My Exams</button>
+        <button class="nav-btn" id="btn-register" onclick="showView('register')"> Register</button>
       </nav>
       <div class="user-controls">
-        <span id="user-display">🔐 Guest</span>
-        <button id="student-login-btn" class="btn-success" onclick="studentLogin()">👤 Student Login</button>
+        <span id="user-display"> Guest</span>
+        <button id="student-login-btn" class="btn-success" onclick="studentLogin()"> Student Login</button>
       </div>
     </header>
     <main class="content">
       <div id="auth-warning" class="auth-warning" style="display:none;">
-        <h3>🔐 Login Required</h3>
+        <h3> Login Required</h3>
         <p>Please login to access exams</p>
-        <div style="margin-top:16px;"><button class="btn-success" onclick="studentLogin()">👤 Student Login</button></div>
+        <div style="margin-top:16px;"><button class="btn-success" onclick="studentLogin()"> Student Login</button></div>
       </div>
       <section id="exams" class="view">
         <div class="toolbar">
           <input type="text" id="search-exam" placeholder="🔍 Search..." class="search-input" oninput="renderExams()"/>
         </div>
-        <div id="student-exam-notice" style="background:#fef3c7;color:#92400e;padding:16px;border-radius:12px;margin-bottom:20px;display:none;">📌 You can only see exams shared via link.</div>
+        <div id="student-exam-notice" style="background:#fef3c7;color:#92400e;padding:16px;border-radius:12px;margin-bottom:20px;display:none;"> You can only see exams shared via link.</div>
         <div class="exam-list" id="exam-list"></div>
       </section>
       <section id="register" class="view">
         <div class="card">
-          <h3>📝 Student Registration</h3>
-          <div id="exam-access-info" style="background:#e0e7ff;padding:16px;border-radius:12px;margin-bottom:20px;display:none;"><p><strong>📚 Exam:</strong> <span id="assigned-exam-name"></span></p></div>
+          <h3> Student Registration</h3>
+          <div id="exam-access-info" style="background:#e0e7ff;padding:16px;border-radius:12px;margin-bottom:20px;display:none;"><p><strong> Exam:</strong> <span id="assigned-exam-name"></span></p></div>
           <form id="register-form" onsubmit="registerStudent(event)">
             <div class="form-group"><label>Full Name *</label><input type="text" id="reg-name" required/></div>
             <div class="form-group"><label>Phone *</label><input type="tel" id="reg-phone" required/></div>
             <div class="form-group"><label>Class *</label><input type="text" id="reg-class" required/></div>
-            <button type="submit" class="btn-primary">✅ Register</button>
+            <button type="submit" class="btn-primary"> Register</button>
           </form>
         </div>
       </section>
@@ -83,7 +83,7 @@
           <form id="take-exam-form" onsubmit="submitExam(event)">
             <div id="exam-questions-container"></div>
             <div class="form-group" style="margin-top:24px;"><label>💬 Testimony (Optional)</label><textarea id="exam-testimony" rows="3"></textarea></div>
-            <button type="submit" class="btn-primary" style="margin-top:24px;">📤 Submit</button>
+            <button type="submit" class="btn-primary" style="margin-top:24px;"> Submit</button>
           </form>
         </div>
       </section>
@@ -92,15 +92,15 @@
           <h3>📊 Results</h3><h2 id="result-exam-title" style="font-size:48px;margin:20px 0;"></h2>
           <div id="result-score" style="font-size:72px;font-weight:800;"></div>
           <p id="result-marks"></p><p id="result-date"></p>
-          <button class="btn-secondary" onclick="showView('exams')" style="margin-top:24px;">📚 Back</button>
+          <button class="btn-secondary" onclick="showView('exams')" style="margin-top:24px;"> Back</button>
         </div>
       </section>
     </main>
-    <footer class="footer">© 2026 Exam Portal - Student 🎯</footer>
+    <footer class="footer">© 2026 Exam Portal - Student </footer>
   </div>
 
   <script>
-    // 🔥 NEW FIREBASE (Examination) - FOR STUDENTS
+    // NEW FIREBASE (Examination) - FOR STUDENTS
     const firebaseConfig = {
       apiKey: "AIzaSyBslORNsWS9qI4wXyBr3YpNA45bt5YYvjg",
       authDomain: "examination-dfebe.firebaseapp.com",
@@ -123,17 +123,17 @@
     auth.onAuthStateChanged(function(user) {
       app.currentUser = user;
       if (user) {
-        document.getElementById('user-display').textContent = '👤 ' + (user.email || 'User');
+        document.getElementById('user-display').textContent = ' ' + (user.email || 'User');
         document.getElementById('student-login-btn').style.display = 'none';
         const logoutBtn = document.createElement('button');
-        logoutBtn.className = 'btn-danger'; logoutBtn.style.padding = '8px 16px'; logoutBtn.textContent = '🚪 Logout';
+        logoutBtn.className = 'btn-danger'; logoutBtn.style.padding = '8px 16px'; logoutBtn.textContent = ' Logout';
         logoutBtn.onclick = function() { auth.signOut().then(() => { location.reload(); }); };
         document.querySelector('.user-controls').appendChild(logoutBtn);
         document.getElementById('auth-warning').style.display = 'none';
         loadAllData();
         if (app.assignedExamId && !app.registeredStudent) { loadExamForRegistration(); showView('register'); }
       } else {
-        document.getElementById('user-display').textContent = '🔐 Guest';
+        document.getElementById('user-display').textContent = ' Guest';
         document.getElementById('student-login-btn').style.display = 'inline-block';
         document.getElementById('auth-warning').style.display = 'block';
         app.exams = {}; app.results = {};
@@ -141,16 +141,16 @@
     });
 
     window.studentLogin = function() {
-      const email = prompt('📧 Enter your email:'); if (!email) return;
+      const email = prompt(' Enter your email:'); if (!email) return;
       const password = prompt('📱 Enter password:'); if (!password) return;
       auth.signInWithEmailAndPassword(email, password)
-        .then(() => { alert('✅ Login successful!'); if (app.assignedExamId) showView('register'); else showView('exams'); })
+        .then(() => { alert(' Login successful!'); if (app.assignedExamId) showView('register'); else showView('exams'); })
         .catch(err => {
           if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-login-credentials') {
             auth.createUserWithEmailAndPassword(email, password)
-              .then(() => { alert('✅ Account created! Welcome!'); if (app.assignedExamId) showView('register'); else showView('exams'); })
-              .catch(e => alert('❌ Error: ' + e.message));
-          } else { alert('❌ Error: ' + err.message); }
+              .then(() => { alert(' Account created! Welcome!'); if (app.assignedExamId) showView('register'); else showView('exams'); })
+              .catch(e => alert(' Error: ' + e.message));
+          } else { alert(' Error: ' + err.message); }
         });
     };
 
@@ -167,15 +167,15 @@
 
     function loadExamForRegistration() { if (!app.assignedExamId) return; database.ref('exams/' + app.assignedExamId).once('value').then(snapshot => { const exam = snapshot.val(); if (exam) { document.getElementById('assigned-exam-name').textContent = exam.title; document.getElementById('exam-access-info').style.display = 'block'; } else { alert('❌ Invalid exam link'); app.assignedExamId = null; } }); }
     
-    window.registerStudent = function(e) { e.preventDefault(); if (!app.currentUser) { alert('🔐 Please login first'); return; } const studentData = { name: document.getElementById('reg-name').value.trim(), phone: document.getElementById('reg-phone').value.trim(), class: document.getElementById('reg-class').value.trim(), email: app.currentUser.email || null, userId: app.currentUser.uid, registeredAt: Date.now(), assignedExamId: app.assignedExamId }; database.ref('students/' + app.currentUser.uid).set(studentData).then(() => { app.registeredStudent = studentData; alert('✅ Registration successful!'); document.getElementById('register-form').reset(); showView('exams'); }).catch(err => alert('❌ Error: ' + err.message)); };
+    window.registerStudent = function(e) { e.preventDefault(); if (!app.currentUser) { alert(' Please login first'); return; } const studentData = { name: document.getElementById('reg-name').value.trim(), phone: document.getElementById('reg-phone').value.trim(), class: document.getElementById('reg-class').value.trim(), email: app.currentUser.email || null, userId: app.currentUser.uid, registeredAt: Date.now(), assignedExamId: app.assignedExamId }; database.ref('students/' + app.currentUser.uid).set(studentData).then(() => { app.registeredStudent = studentData; alert('✅ Registration successful!'); document.getElementById('register-form').reset(); showView('exams'); }).catch(err => alert('❌ Error: ' + err.message)); };
     
     function loadAllData() { database.ref('exams').on('value', snapshot => { app.exams = snapshot.val() || {}; renderExams(); }); database.ref('results').on('value', snapshot => { app.results = snapshot.val() || {}; }); if (app.currentUser) { database.ref('students/' + app.currentUser.uid).once('value').then(snapshot => { const student = snapshot.val(); if (student) app.registeredStudent = student; }); } }
     
     window.renderExams = function() { const list = document.getElementById('exam-list'); if (!list) return; let filtered = Object.entries(app.exams); if (app.assignedExamId) filtered = filtered.filter(([id, exam]) => id === app.assignedExamId); else if (app.registeredStudent && app.registeredStudent.assignedExamId) filtered = filtered.filter(([id, exam]) => id === app.registeredStudent.assignedExamId); else if (!app.assignedExamId) filtered = []; if (filtered.length === 0) { list.innerHTML = '<p style="text-align:center;color:#718096;padding:40px;">No exams assigned. Wait for teacher link.</p>'; return; } const completedExams = Object.values(app.results).filter(r => r.userId === app.currentUser.uid).map(r => r.examId); list.innerHTML = filtered.map(([id, exam]) => { const isCompleted = completedExams.includes(id); return '<div class="exam-card"><h4>' + exam.title + '</h4><p><strong>Subject:</strong> ' + exam.subject + '</p><p><strong>Duration:</strong> ' + exam.duration + ' min</p><p><strong>Marks:</strong> ' + exam.totalMarks + '</p><p><strong>Questions:</strong> ' + (exam.questions ? exam.questions.length : 0) + '</p><span class="badge badge-active">' + exam.status.toUpperCase() + '</span>' + (isCompleted ? '<span class="badge" style="background:#d1fae5;color:#065f46;">✅ Completed</span>' : '') + (exam.status === 'active' && !isCompleted ? '<button class="btn-primary btn-sm" onclick="takeExam(\'' + id + '\')" style="margin-top:12px;width:100%;">📝 Take Exam</button>' : '') + (isCompleted ? '<button class="btn-secondary btn-sm" onclick="viewMyResult(\'' + id + '\')" style="margin-top:12px;width:100%;">📊 View Result</button>' : '') + '</div>'; }).join(''); };
     
-    // 🔥 UPDATED: Matches YOUR question structure
+    //  UPDATED: Matches YOUR question structure
     window.takeExam = function(examId) {
-      if (!app.registeredStudent) { alert('📝 Register first!'); showView('register'); return; }
+      if (!app.registeredStudent) { alert(' Register first!'); showView('register'); return; }
       const exam = app.exams[examId];
       if (!exam) return;
       app.currentExam = { id: examId, ...exam };
@@ -210,11 +210,11 @@
     
     function startTimer() { const timerEl = document.getElementById('exam-timer'); app.timer = setInterval(() => { app.timeRemaining--; const m = Math.floor(app.timeRemaining / 60); const s = app.timeRemaining % 60; timerEl.textContent = '⏱️ ' + m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0'); if (app.timeRemaining <= 60) timerEl.classList.add('urgent'); if (app.timeRemaining <= 0) { clearInterval(app.timer); alert('⏰ Time up!'); submitExam(null, true); } }, 1000); }
     
-    // 🔥 UPDATED: Matches YOUR answer structure
+    //  UPDATED: Matches YOUR answer structure
     window.submitExam = function(e, autoSubmit = false) {
       if (e) e.preventDefault();
       if (!app.currentExam || !app.currentUser || !app.registeredStudent) return;
-      if (!autoSubmit && !confirm('📤 Submit?')) return;
+      if (!autoSubmit && !confirm(' Submit?')) return;
       clearInterval(app.timer);
       let score = 0, totalMarks = 0;
       const answers = {};
@@ -242,15 +242,15 @@
         document.getElementById('result-exam-title').textContent = app.currentExam.title;
         document.getElementById('result-score').textContent = percentage + '%';
         document.getElementById('result-marks').textContent = score + ' / ' + totalMarks;
-        document.getElementById('result-date').textContent = '📅 ' + new Date().toLocaleString();
+        document.getElementById('result-date').textContent = ' ' + new Date().toLocaleString();
         showView('exam-result');
         app.currentExam = null;
-      }).catch(err => alert('❌ Error: ' + err.message));
+      }).catch(err => alert(' Error: ' + err.message));
     };
     
     window.viewMyResult = function(examId) { const result = Object.values(app.results).find(r => r.examId === examId && r.userId === app.currentUser.uid); if (!result) return; document.getElementById('result-exam-title').textContent = result.examTitle; document.getElementById('result-score').textContent = result.percentage + '%'; document.getElementById('result-marks').textContent = result.score + ' / ' + result.totalMarks; document.getElementById('result-date').textContent = '📅 ' + new Date(result.submittedAt).toLocaleString(); showView('exam-result'); };
     
-    window.addEventListener('DOMContentLoaded', function() { console.log('✅ Student Portal Ready!'); if (app.assignedExamId && !app.currentUser) document.getElementById('auth-warning').style.display = 'block'; });
+    window.addEventListener('DOMContentLoaded', function() { console.log(' Student Portal Ready!'); if (app.assignedExamId && !app.currentUser) document.getElementById('auth-warning').style.display = 'block'; });
     window.addEventListener('beforeunload', function(e) { if (app.timer) { e.preventDefault(); e.returnValue = 'Exam in progress!'; } });
   </script>
 </body>
